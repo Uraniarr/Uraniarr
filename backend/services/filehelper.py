@@ -110,7 +110,7 @@ def move_files(src: Path, dst_dir: Path, audio: bool, cfg):
         dst_dir.mkdir(parents=True)
     else:
         dst_dir.parent.mkdir(parents=True, exist_ok=True)
-    attr = "audio_extensions" if audio else "book_extensions"
+    attr = "audio_extensions_rating" if audio else "book_extensions"
     itr = [src] if src.is_file() else src.rglob("*")
     double_release = False
     for file in itr:
@@ -370,6 +370,7 @@ async def scan_and_move_all_files(state):
                     if src.is_file() and src.parent.resolve() != Path(cat_dir).resolve():
                         src = src.parent
                     shutil.move(src, cfg.ingest_path)
+                    downloader.remove_from_history(cfg, [key])
                     continue
                 moved.append(asyncio.to_thread(import_book_from_acitivity, activity, activity.book, activity.audio, src, cat_dir=Path(cat_dir), cfg=cfg, session=session))
             await downloader.remove_from_history(cfg, [nzo_id for nzo_id in await asyncio.gather(*moved) if nzo_id is not None])
