@@ -16,7 +16,7 @@ from backend.services.jobs import init_jobs, stop_jobs
 from backend.services.request import reload_scraper
 from backend.services.indexer import *
 from backend.services.downloader import *
-from backend.dependencies import get_error_logger, get_logger
+from backend.dependencies import get_error_logger, get_logger, _set_app_version
 
 def init_err_log(cfg: ConfigManager):
     uraniarr_err = get_error_logger()
@@ -34,6 +34,7 @@ def init_err_log(cfg: ConfigManager):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _set_app_version(os.getenv("APP_VERSION", None))
     cfg = ConfigManager(os.getenv("CONFIG_DIR", "/config"))
     app.state.cfg_manager = cfg
     init_err_log(cfg)

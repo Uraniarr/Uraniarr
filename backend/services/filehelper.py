@@ -106,19 +106,27 @@ def mark_overwritten_activity(book, audio: bool):
     return None
 
 def move_files(src: Path, dst_dir: Path, audio: bool, cfg):
-    if src.is_dir():
+    if audio:
         dst_dir.mkdir(parents=True)
     else:
         dst_dir.parent.mkdir(parents=True, exist_ok=True)
     attr = "audio_extensions_rating" if audio else "book_extensions"
-    itr = [src] if src.is_file() else src.rglob("*")
+    if src.is_file() and src.suffix in getattr(cfg, attr).split(","):
+        shutil.move(str(src), str(dst_dir if audio else dst_dir.with_suffix(src.suffix)))
+        return {"valid": True, "double_release": False}
+    valid = False
     double_release = False
-    for file in itr:
-        if file.is_file() and file.suffix.lower() in getattr(cfg, attr).split(","):
+    for suffix in getattr(cfg, attr).split(","):
+        for file in src.rglob(f"*{suffix}"):
+            if not file.is_file(): continue
+            valid = True
+            if not audio:
+                shutil.move(str(file), str(dst_dir.with_suffix(suffix)))
+                return {"valid": valid, "double_release": double_release}
             shutil.move(str(file), str(dst_dir))
-            if audio and file.suffix.lower() in cfg.book_extensions.split(","):
+            if file.suffix.lower() in cfg.book_extensions.split(","):
                 double_release = True
-    return double_release
+    return {"valid": valid, "double_release": double_release}
 
 
 def cleanup_source(src: Path, cat_dir: Path, cfg: ConfigManager, was_file: bool = False):
@@ -176,7 +184,11 @@ def import_book_from_acitivity(activity: Optional[Activity], book: Book, audio: 
             bak_dir = ensure_backup(dst_dir)
         if activity is not None:
             overwritten_act = mark_overwritten_activity(book, audio)
-        double_release = move_files(src, dst_dir, audio, cfg)
+        metadata = move_files(src, dst_dir, audio, cfg)
+        double_release = metadata["double_release"]
+        valid = metadata["valid"]
+        # if not valid:
+            # return
         if double_release and activity is not None:
             if session is None:
                 raise Exception("Session is required for double release")

@@ -1,6 +1,6 @@
 from io import BytesIO
 from urllib.parse import urlencode
-from backend.dependencies import get_logger, get_scorer
+from backend.dependencies import get_http, get_logger, get_scorer
 from backend.exceptions import IndexerError
 from backend.services.indexer.base_indexer import BaseIndexer
 import xml.etree.ElementTree as ET
@@ -20,11 +20,7 @@ class NewznabService(BaseIndexer):
             "q": q,
             "apikey": self.apikey
         }
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(self.url, params=search)
-        except httpx.ConnectError as e:
-            raise IndexerError(status_code=404, detail="Could not connect to indexer", exception=e)
+        response = await get_http(self.url, params=search)
         if response.status_code != 200: raise IndexerError(status_code=response.status_code, detail="Could not connect to indexer", exception=response.text)
         if "error" in response.text: raise IndexerError(status_code=403, detail="Could not connect to indexer", exception=response.text)
         data = response.content
@@ -34,11 +30,7 @@ class NewznabService(BaseIndexer):
         if (timeout:=time() - self.last_hit) < cfg.indexer_timeout:
             await asyncio.sleep(cfg.indexer_timeout - timeout)
         self.last_hit = time()
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(download, follow_redirects=True)
-        except Exception as e:
-            raise IndexerError(status_code=404, detail="Could not connect to indexer", exception=e)
+        response = await get_http(download, follow_redirects=True)
         if response.status_code != 200: raise IndexerError(status_code=response.status_code, detail="Could not connect to indexer", exception=response.text)
         if "error" in response.text: raise IndexerError(status_code=403, detail="Could not connect to indexer", exception=response.text)
         return response.content

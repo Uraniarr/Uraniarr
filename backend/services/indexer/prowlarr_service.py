@@ -1,5 +1,5 @@
 import httpx
-from backend.dependencies import get_logger, get_scorer
+from backend.dependencies import get_http, get_logger, get_scorer
 from backend.services.indexer.base_indexer import BaseIndexer
 from backend.exceptions import IndexerError
 
@@ -13,11 +13,7 @@ class ProwlarrService(BaseIndexer):
             "limit": 100,
             "offset": 0
         }
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(self.url+"/v1/search", params=params)
-        except httpx.ConnectError as e:
-            raise IndexerError(status_code=404, detail="Could not connect to indexer", exception=e)
+        response = await get_http(self.url+"/v1/search", params=params)
         if response.status_code != 200: raise IndexerError(status_code=response.status_code, detail="Could not connect to prowlarr", exception=response.text)
         response.encoding = 'utf-8'
         if "error" in response.text: raise IndexerError(status_code=403, detail="Could not connect to prowlarr", exception=response.text)
@@ -25,11 +21,7 @@ class ProwlarrService(BaseIndexer):
         return data
 
     async def grab(self, download, cfg):
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(download, follow_redirects=True)
-        except httpx.ConnectError as e:
-            raise IndexerError(status_code=404, detail="Could not connect to indexer", exception=e)
+        response = await get_http(download, follow_redirects=True)
         if response.status_code != 200: raise IndexerError(status_code=response.status_code,detail="Could not connect to prowlarr", exception=response.text)
         response.encoding = 'utf-8'
         if "error" in response.text: raise IndexerError(status_code=403, detail="Could not connect to prowlarr", exception=response.text)

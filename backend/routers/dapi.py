@@ -58,6 +58,8 @@ async def download_guid(request: Request, data: ManualGUIDDownload, audio: bool 
 async def search_manual(request: Request, book_id: str, page:int = 0, audio: bool = True, session: AsyncSession = Depends(get_session)):
     cfg = request.app.state.cfg_manager
     indexers: list[BaseIndexer] = request.app.state.indexers[audio]
+    if len(indexers) == 0:
+        raise HTTPException(status_code=404, detail=f"No available indexer for {'audio' if audio else ''}books")
     book = await session.get(Book, book_id, options=[selectinload(Book.series), selectinload(Book.author)])
     data = None
     nzbs = []
