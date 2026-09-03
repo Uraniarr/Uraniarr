@@ -79,7 +79,6 @@ def compute_template(book: Book, template: str):
     }
     return Path(response), resp
 
-
 def get_destination_dir(book: Book, audio: bool, cfg) -> tuple[str, Optional[str], Path]:
     template = cfg.audiobook_template if audio else cfg.book_template
     template = template or "{{author.name}}/{{series.name}}/{{book.position} - }{{book.name}}"
@@ -95,7 +94,6 @@ def get_destination_dir(book: Book, audio: bool, cfg) -> tuple[str, Optional[str
     if book_dst:
         return author_dir, series_dir, dst_base/book_dst
 
-
 def mark_overwritten_activity(book, audio: bool):
     for act in book.activities:
         if act.audio != audio:
@@ -105,29 +103,22 @@ def mark_overwritten_activity(book, audio: bool):
             return act
     return None
 
-def move_files(src: Path, dst_dir: Path, audio: bool, cfg):
-    if audio:
-        dst_dir.mkdir(parents=True)
-    else:
-        dst_dir.parent.mkdir(parents=True, exist_ok=True)
-    attr = "audio_extensions_rating" if audio else "book_extensions"
-    if src.is_file() and src.suffix in getattr(cfg, attr).split(","):
-        shutil.move(str(src), str(dst_dir if audio else dst_dir.with_suffix(src.suffix)))
-        return {"valid": True, "double_release": False}
-    valid = False
-    double_release = False
-    for suffix in getattr(cfg, attr).split(","):
-        for file in src.rglob(f"*{suffix}"):
-            if not file.is_file(): continue
-            valid = True
-            if not audio:
-                shutil.move(str(file), str(dst_dir.with_suffix(suffix)))
-                return {"valid": valid, "double_release": double_release}
-            shutil.move(str(file), str(dst_dir))
-            if file.suffix.lower() in cfg.book_extensions.split(","):
-                double_release = True
-    return {"valid": valid, "double_release": double_release}
+def get_release_files(src: Path, cfg):
+    files = {True: [], False: []}
+    iterator = src.rglob("*") if src.is_dir() else [src]
+    for f in iterator:
+        if f.is_dir(): continue
+        if f.suffix.lower() in cfg.audio_extensions_rating.split(","):
+            files[True].append(f)
+        elif f.suffix.lower() in cfg.book_extensions.split(","):
+            files[False].append(f)
+    return files
 
+def move_files(files: list, dst_dir: Path, audio: bool):
+    folder = dst_dir if audio else dst_dir.parent
+    folder.mkdir(parents=True, exist_ok=True)
+    for file in files:
+        shutil.move(str(file), str(dst_dir))
 
 def cleanup_source(src: Path, cat_dir: Path, cfg: ConfigManager, was_file: bool = False):
     get_logger().log(5, f"Cleanup called for {src}")
@@ -144,18 +135,14 @@ def cleanup_source(src: Path, cat_dir: Path, cfg: ConfigManager, was_file: bool 
 
     shutil.rmtree(src)
 
-
-def restore_backup(bak_dir: Optional[Path], dst_dir: Optional[Path], overwritten_act):
+def restore_backup(bak_dir: Optional[Path], dst_dir: Optional[Path]):
     try:
         if bak_dir and dst_dir:
             if dst_dir.exists():
                 shutil.rmtree(dst_dir)
             shutil.move(bak_dir, dst_dir)
-        if overwritten_act:
-            overwritten_act.status = ActivityStatus.imported
     except Exception as e:
         get_logger().error(f"Tried restoring {dst_dir} but failed with: {e}")
-
 
 def cleanup_backup(bak_dir: Optional[Path], dst_dir: Optional[Path]):
     try:
@@ -165,54 +152,67 @@ def cleanup_backup(bak_dir: Optional[Path], dst_dir: Optional[Path]):
     except Exception as e:
         get_logger().error(f"Final cleanup of {bak_dir} failed with: {e}")
 
-
-def import_book_from_acitivity(activity: Optional[Activity], book: Book, audio: bool, src: Path, cat_dir: Path, cfg: ConfigManager, overwrite: bool = False, session:Optional[AsyncSession]=None):
-    is_file = src.is_file()
-
-    bak_dir = None
-    overwritten_act = None
+def move_or_restore(files: list, dst_dir: Path, audio: bool):
+    bak_dir = ensure_backup(dst_dir) if dst_dir.exists() else None
     try:
-        if not book:
-            get_logger().info(f"No book for {src.name} found")
-            return
-        autor_dir, series_dir, dst_dir = get_destination_dir(book, audio, cfg)
-        if is_file:
-            dst_dir = dst_dir.with_name(dst_dir.name + src.suffix)
-        if src.resolve() == dst_dir.resolve():
-            raise Exception(f"Source and destination are the same: {src}")
-        if dst_dir.exists():
-            bak_dir = ensure_backup(dst_dir)
-        if activity is not None:
-            overwritten_act = mark_overwritten_activity(book, audio)
-        metadata = move_files(src, dst_dir, audio, cfg)
-        double_release = metadata["double_release"]
-        valid = metadata["valid"]
-        # if not valid:
-            # return
-        if double_release and activity is not None:
-            if session is None:
-                raise Exception("Session is required for double release")
-            session.add(Activity(nzo_id=activity.nzo_id+"_dr", release_title=activity.release_title, guid=activity.guid, book=book, audio=False))
-            import_book_from_acitivity(activity, book, False, src, cat_dir, cfg, overwrite=overwrite, session=session)
-        cleanup_source(src, cat_dir, cfg, was_file=is_file)
-        if activity is not None:
-            activity.status = ActivityStatus.imported
-        attr = "a_dl_loc" if audio else "b_dl_loc"
-        setattr(book, attr, str(dst_dir))
-        if not overwrite:
-            return activity.nzo_id if activity else "retag"
-        setattr(book.author, attr, autor_dir)
-        setattr(book.series, attr, series_dir)
-        return activity.nzo_id if activity else "retag"
-    except Exception as e:
-        get_error_logger().exception(e)
-        get_logger().error(f"Error importing {src}: {e}")
-        if activity is not None:
-            activity.status = ActivityStatus.failed
-        restore_backup(bak_dir, dst_dir, overwritten_act)
-        return None
-    finally:
+        move_files(files, dst_dir, audio)
         cleanup_backup(bak_dir, dst_dir)
+        return True
+    except Exception as e1:
+        get_logger().error(f"Ran into Error while trying to import files:\n    {e1}")
+        if bak_dir is None:
+            return False
+        try:
+            shutil.rmtree(dst_dir)
+            restore_backup(bak_dir, dst_dir, None)
+        except Exception as e2:
+            get_logger().error(f"Could not restore backup:\n    {e2}")
+    return False
+
+def prepare_destination(book: Book, audio: bool, cfg: ConfigManager):
+    wanted = get_destination_dir(book, audio, cfg)
+    try:
+        extra = get_destination_dir(book, not audio, cfg)
+    except FileError:
+        extra = (None, None, None)
+    return {
+        "wanted": wanted,
+        "extra": extra
+    }
+
+def import_book_files(destinations: dict, audio: bool, src: Path, cat_dir: Path, cfg: ConfigManager, ignore_extra: bool = True):
+    was_file = src.is_file()
+    files = get_release_files(src, cfg)
+    wanted_files = files[audio]
+    wanted_autor_dir, wanted_series_dir, wanted_dst_dir = destinations["wanted"]
+    extra_autor_dir, extra_series_dir, extra_dst_dir = destinations["extra"]
+    extra_valid = False
+    if len(wanted_files) == 0:
+        get_logger().error(f"Error importing {src}. No {'audio' if audio else 'book'} files found")
+        return None #TODO signal so we dont try every X seconds
+    extra_files = files[not audio]
+    if not extra_dst_dir and extra_files:
+        get_logger().info(f"Found a double release but {'Book' if audio else 'Audio'} path is not configured. Ignoring.")
+        extra_files = []
+    if not audio:
+        if len(wanted_files) > 1:
+            get_logger().warning(f"Found multiple book files, only 1 is supported. Taking the first of {files[False]}")
+            wanted_files = wanted_files[:1]
+        wanted_dst_dir = wanted_dst_dir.with_suffix(wanted_files[0].suffix)
+    else:
+        if extra_files:
+            if len(extra_files) > 1:
+                get_logger().warning(f"Found multiple book files, only 1 is supported. Taking the first of {files[False]}")
+                extra_files = extra_files[:1]
+            extra_dst_dir = extra_dst_dir.with_suffix(extra_files[0].suffix)
+    wanted_valid = move_or_restore(wanted_files, wanted_dst_dir, audio)
+    if extra_files and not ignore_extra:
+        extra_valid = move_or_restore(extra_files, extra_dst_dir, not audio)
+    cleanup_source(src, cat_dir, was_file)
+    return {
+        audio: {"valid": wanted_valid, "author_dir": wanted_autor_dir, "series_dir": wanted_series_dir, "dst_dir": wanted_dst_dir},
+        not audio: {"valid": extra_valid, "author_dir": extra_autor_dir, "series_dir": extra_series_dir, "dst_dir": extra_dst_dir}
+    }
 
 def preview_retag(book: Book, cfg: ConfigManager):
     prv = {
@@ -222,53 +222,50 @@ def preview_retag(book: Book, cfg: ConfigManager):
             "old_audio": None,
             "old_book": None,
             "new_audio": None,
-            "new_book": None
+            "new_book": None,
+            "author_audio": None,
+            "series_audio": None,
+            "author_book": None,
+            "series_book": None
         }
     }
     if book.a_dl_loc:
         prv["retag"]["old_audio"] = book.a_dl_loc
         old = Path(book.a_dl_loc).resolve()
-        author_dir, series_dir, book_dir = get_destination_dir(book, True, cfg)
-        if old.is_file():
-            book_dir = book_dir.with_name(book_dir.name + old.suffix)
-        new = book_dir.resolve()
+        author, series, new = get_destination_dir(book, True, cfg)
+        prv["retag"]["author_audio"] = author
+        prv["retag"]["series_audio"] = series
+        new = new.resolve()
         get_logger().log(5, f"{old} == {new}: {old == new}")
-        if old == new:
-            get_logger().debug(f"RETAG Nothing to do for {book.name}")
-        else:
-            prv["retag"]["new_audio"] = book_dir
+        if old != new:
+            prv["retag"]["new_audio"] = new
+
     if book.b_dl_loc:
         prv["retag"]["old_book"] = book.b_dl_loc
         old = Path(book.b_dl_loc).resolve()
-        author_dir, series_dir, book_dir = get_destination_dir(book, False, cfg)
-        get_logger().debug(f"Calculated {author_dir=}, {series_dir=}")
+        author, series, new = get_destination_dir(book, False, cfg)
+        prv["retag"]["author_book"] = author
+        prv["retag"]["series_book"] = series
         if old.is_file():
-            book_dir = book_dir.with_name(book_dir.name + old.suffix)
-        new = book_dir.resolve()
+            new = new.with_suffix(old.suffix)
+        new = new.resolve()
         get_logger().log(5, f"{old} == {new}: {old == new}")
-        if old == new:
-            get_logger().debug(f"RETAG Nothing to do for {book.name}")
-        else:
-            prv["retag"]["new_book"] = book_dir
+        if old != new:
+            prv["retag"]["new_book"] = new
     return prv
 
-
-async def retag_book(book: Book, cfg: ConfigManager, overwrite: bool = False):
+async def retag_book(book: Book, cfg: ConfigManager):
     moved = []
     prv = preview_retag(book, cfg)
     if book.a_dl_loc and prv["retag"]["new_audio"]:
         a = Path(book.a_dl_loc)
-        moved.append(asyncio.to_thread(import_book_from_acitivity, None, book, True, Path(book.a_dl_loc), cat_dir=a.parent, cfg=cfg, overwrite=overwrite))
+        destinations = prepare_destination(book, True, cfg)
+        moved.append(asyncio.to_thread(import_book_files, destinations, True, a, a.parent, cfg, True))
     if book.b_dl_loc and prv["retag"]["new_book"]:
         b = Path(book.b_dl_loc)
-        moved.append(asyncio.to_thread(import_book_from_acitivity, None, book, False, Path(book.b_dl_loc), cat_dir=b.parent, cfg=cfg, overwrite=overwrite))
+        destinations = prepare_destination(book, False, cfg)
+        moved.append(asyncio.to_thread(import_book_files, destinations, False, b, b.parent, cfg, True))
     r = await asyncio.gather(*moved)
-    if len(r) == 0: return None, None
-    if len(r) == 1:
-        if book.a_dl_loc:
-            return r[0], None
-        if book.b_dl_loc:
-            return None, r[0]
     return r
 
 async def delete_audio_book(book_id: str, session: AsyncSession):
@@ -357,35 +354,57 @@ def get_files_of_ext(base_paths, exts):
             book_dirs.update(set(base_path.rglob(f"*{ext}")))
     return book_dirs
 
-async def scan_and_move_all_files(state):
+async def scan_and_import_files(state):
     cfg = state.cfg_manager
-    downloaders: list[BaseDownloader] = state.downloaders[True] + state.downloaders[False]
+    # downloaders: list[BaseDownloader] = state.downloaders[True] + state.downloaders[False]
+    activities: list[Activity] = []
+    moves = []
+    dl_loc = { True: "a_dl_loc", False: "b_dl_loc" }
+    nzo_to_dl: dict[str, BaseDownloader] = {}
     async with AsyncSession(state.engine) as session:
-        for downloader in downloaders:
-            hist, cat_dir = await asyncio.gather(
-                downloader.get_history(cfg),
-                downloader.get_cat_dir(cfg)
-            )
-            moved = []
-            for key, slot in hist.items():
-                activity = await session.get(Activity, key, options=[
-                    selectinload(Activity.book).selectinload(Book.author),
-                    selectinload(Activity.book).selectinload(Book.series).selectinload(Series.books),
-                    selectinload(Activity.book).selectinload(Book.activities)
-                ])
-                if not slot["status"] == "Completed": continue
-                src = Path(slot["storage"])
-                if os.getenv("DEV"):
-                    src = Path(os.getenv("DEV")) / str(slot["storage"])[1:] # DEV
-                if not activity:
-                    get_logger().debug(f"Activity {key} of our category not found in db")
-                    if src.is_file() and src.parent.resolve() != Path(cat_dir).resolve():
-                        src = src.parent
-                    shutil.move(src, cfg.ingest_path)
-                    downloader.remove_from_history(cfg, [key])
-                    continue
-                moved.append(asyncio.to_thread(import_book_from_acitivity, activity, activity.book, activity.audio, src, cat_dir=Path(cat_dir), cfg=cfg, session=session))
-            await downloader.remove_from_history(cfg, [nzo_id for nzo_id in await asyncio.gather(*moved) if nzo_id is not None])
+        for dl_audio, downloaders in state.downloaders.items():
+            for downloader in downloaders:
+                hist, cat_dir = await asyncio.gather(downloader.get_history(cfg), downloader.get_cat_dir(cfg))
+                for key, slot in hist.items():
+                    if not slot["status"] == "Completed": continue
+                    activity = await session.get(Activity, key, options=[
+                        selectinload(Activity.book).selectinload(Book.author),
+                        selectinload(Activity.book).selectinload(Book.series).selectinload(Series.books),
+                        selectinload(Activity.book).selectinload(Book.activities)
+                    ])
+                    if dl_audio != activity.audio: continue
+                    nzo_to_dl[key] = downloader
+                    src = Path(slot["storage"])
+                    if os.getenv("DEV"):
+                        src = Path(os.getenv("DEV")) / str(slot["storage"])[1:] # DEV
+                    # if not activity: # move to ingst
+                    if activity.status == ActivityStatus.failed: continue
+                    activities.append(activity)
+                    ignore_extra = bool(getattr(activity.book, dl_loc[not activity.audio]))
+                    moves.append(asyncio.to_thread(import_book_files, prepare_destination(activity.book, activity.audio, cfg), activity.audio, src, Path(cat_dir), cfg, ignore_extra))
+
+        import_data = await asyncio.gather(*moves, return_exceptions=True)
+        for activity, data in zip(activities, import_data):
+            if isinstance(data, Exception) or not data[activity.audio]["valid"]:
+                get_logger().debug(f"Import Failed! {data} {activity.model_dump()}")
+                activity.status = ActivityStatus.failed
+                continue
+            wanted, extra = data[activity.audio], data[not activity.audio]
+            wanted_loc, extra_loc = dl_loc[activity.audio], dl_loc[not activity.audio]
+            setattr(activity.book, dl_loc[activity.audio], str(wanted["dst_dir"]))
+            if getattr(activity.book.author, wanted_loc) is None:
+                setattr(activity.book.author, wanted_loc, wanted["author_dir"])
+            if getattr(activity.book.series, wanted_loc) is None:
+                setattr(activity.book.series, wanted_loc, wanted["series_dir"])
+            if extra["valid"]:
+                setattr(activity.book, extra_loc, str(extra["dst_dir"]))
+                if getattr(activity.book.author, extra_loc) is None:
+                    setattr(activity.book.author, extra_loc, extra["author_dir"])
+                if getattr(activity.book.series, extra_loc) is None:
+                    setattr(activity.book.series, extra_loc, extra["series_dir"])
+            mark_overwritten_activity(activity.book, activity.audio)
+            activity.status = ActivityStatus.imported
+        await asyncio.gather(*[downloader.remove_from_history(cfg, nzo_id) for nzo_id, downloader in nzo_to_dl.items()], return_exceptions=True)
         await session.commit()
 
 async def rescan_files(state):

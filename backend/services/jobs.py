@@ -2,12 +2,12 @@ import asyncio
 from contextlib import suppress
 from typing import Optional
 from backend.dependencies import get_error_logger, get_logger
-from backend.services.filehelper import scan_and_move_all_files, rescan_files, reimport_files
+from backend.services.filehelper import scan_and_import_files, rescan_files, reimport_files
 
 mapping = {
     "import_files": {
         "interval_attr": "import_poll_interval",
-        "task_coro": scan_and_move_all_files,
+        "task_coro": scan_and_import_files,
         "name": "ImportJob",
     },
     "check_deleted": {

@@ -1,4 +1,5 @@
 import asyncio
+from collections import defaultdict
 from typing import Any
 from fastapi import HTTPException, Depends, APIRouter, Request
 from backend.dependencies import get_logger, get_session, get_cfg_manager
@@ -222,14 +223,20 @@ async def do_retag_books(data: list[str], session: AsyncSession = Depends(get_se
     #     raise NotImplementedError
     for book in books:
         if not book.a_dl_loc and not book.b_dl_loc: raise HTTPException(status_code=404, detail=f"{book.name} is not downloaded, cant retag")
-        retags.append(retag_book(book, cfg, overwrite=overwrite))
+        retags.append(retag_book(book, cfg))
     rs = await asyncio.gather(*retags)
-    resp = [
-        {book.key: {
-            "audio": r[0] is not None,
-            "book": r[1] is not None
-        }} for r, book in zip(rs, books)
-    ]
+    dl_loc = { True: "a_dl_loc", False: "b_dl_loc" }
+    mappings = { True: "audio", False: "book" }
+    resp = defaultdict(lambda: {"audio": False, "book": False})
+    for book, result in zip(books, rs):
+        for res in result:
+            for audio in (True, False):
+                if not res[audio]["valid"]: continue
+                setattr(book, dl_loc[audio], str(res[audio]["dst_dir"]))
+                if overwrite:
+                    setattr(book.author, dl_loc[audio], str(data["author_dir"]))
+                    setattr(book.series, dl_loc[audio], str(data["series_dir"]))
+                resp[book.key][mappings[audio]] = True
     await session.commit()
     return resp
 
