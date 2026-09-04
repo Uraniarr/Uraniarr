@@ -132,7 +132,6 @@ def cleanup_source(src: Path, cat_dir: Path, cfg: ConfigManager, was_file: bool 
     if src.resolve() == cat_dir.resolve():
         get_logger().info(f"The source directory is the same as the category directory. Will not delete. {src}")
         return
-
     shutil.rmtree(src)
 
 def restore_backup(bak_dir: Optional[Path], dst_dir: Optional[Path]):
@@ -148,7 +147,10 @@ def cleanup_backup(bak_dir: Optional[Path], dst_dir: Optional[Path]):
     try:
         if bak_dir and dst_dir:
             if dst_dir.exists() and bak_dir.exists():
-                shutil.rmtree(bak_dir)
+                if bak_dir.is_file():
+                    os.remove(bak_dir)
+                else:
+                    shutil.rmtree(bak_dir)
     except Exception as e:
         get_logger().error(f"Final cleanup of {bak_dir} failed with: {e}")
 
@@ -187,9 +189,6 @@ def import_book_files(destinations: dict, audio: bool, src: Path, cat_dir: Path,
     wanted_autor_dir, wanted_series_dir, wanted_dst_dir = destinations["wanted"]
     extra_autor_dir, extra_series_dir, extra_dst_dir = destinations["extra"]
     extra_valid = False
-    if len(wanted_files) == 0:
-        get_logger().error(f"Error importing {src}. No {'audio' if audio else 'book'} files found")
-        return None #TODO signal so we dont try every X seconds
     extra_files = files[not audio]
     if not extra_dst_dir and extra_files:
         get_logger().info(f"Found a double release but {'Book' if audio else 'Audio'} path is not configured. Ignoring.")
@@ -205,10 +204,15 @@ def import_book_files(destinations: dict, audio: bool, src: Path, cat_dir: Path,
                 get_logger().warning(f"Found multiple book files, only 1 is supported. Taking the first of {files[False]}")
                 extra_files = extra_files[:1]
             extra_dst_dir = extra_dst_dir.with_suffix(extra_files[0].suffix)
-    wanted_valid = move_or_restore(wanted_files, wanted_dst_dir, audio)
+    if len(wanted_files) == 0:
+        get_logger().error(f"Error importing {src}. No {'audio' if audio else 'book'} files found")
+        wanted_valid = False
+        #TODO signal so we dont try every X seconds
+    else:
+        wanted_valid = move_or_restore(wanted_files, wanted_dst_dir, audio)
     if extra_files and not ignore_extra:
         extra_valid = move_or_restore(extra_files, extra_dst_dir, not audio)
-    cleanup_source(src, cat_dir, was_file)
+    cleanup_source(src, cat_dir, cfg, was_file)
     return {
         audio: {"valid": wanted_valid, "author_dir": wanted_autor_dir, "series_dir": wanted_series_dir, "dst_dir": wanted_dst_dir},
         not audio: {"valid": extra_valid, "author_dir": extra_autor_dir, "series_dir": extra_series_dir, "dst_dir": extra_dst_dir}
@@ -383,27 +387,30 @@ async def scan_and_import_files(state):
                     ignore_extra = bool(getattr(activity.book, dl_loc[not activity.audio]))
                     moves.append(asyncio.to_thread(import_book_files, prepare_destination(activity.book, activity.audio, cfg), activity.audio, src, Path(cat_dir), cfg, ignore_extra))
 
-        import_data = await asyncio.gather(*moves, return_exceptions=True)
+        import_data = await asyncio.gather(*moves, return_exceptions=False)
         for activity, data in zip(activities, import_data):
             if isinstance(data, Exception) or not data[activity.audio]["valid"]:
                 get_logger().debug(f"Import Failed! {data} {activity.model_dump()}")
                 activity.status = ActivityStatus.failed
-                continue
+                if isinstance(data, Exception): continue
             wanted, extra = data[activity.audio], data[not activity.audio]
             wanted_loc, extra_loc = dl_loc[activity.audio], dl_loc[not activity.audio]
-            setattr(activity.book, dl_loc[activity.audio], str(wanted["dst_dir"]))
-            if getattr(activity.book.author, wanted_loc) is None:
-                setattr(activity.book.author, wanted_loc, wanted["author_dir"])
-            if getattr(activity.book.series, wanted_loc) is None:
-                setattr(activity.book.series, wanted_loc, wanted["series_dir"])
+            if wanted["valid"]:
+                setattr(activity.book, dl_loc[activity.audio], str(wanted["dst_dir"]))
+                if getattr(activity.book.author, wanted_loc) is None:
+                    setattr(activity.book.author, wanted_loc, wanted["author_dir"])
+                if getattr(activity.book.series, wanted_loc) is None:
+                    setattr(activity.book.series, wanted_loc, wanted["series_dir"])
+                mark_overwritten_activity(activity.book, activity.audio)
+                activity.status = ActivityStatus.imported
             if extra["valid"]:
                 setattr(activity.book, extra_loc, str(extra["dst_dir"]))
                 if getattr(activity.book.author, extra_loc) is None:
                     setattr(activity.book.author, extra_loc, extra["author_dir"])
                 if getattr(activity.book.series, extra_loc) is None:
                     setattr(activity.book.series, extra_loc, extra["series_dir"])
-            mark_overwritten_activity(activity.book, activity.audio)
-            activity.status = ActivityStatus.imported
+                clone = activity.model_dump() | {"nzo_id": f"{activity.nzo_id}DR", "status": ActivityStatus.imported, "audio": not activity.audio}
+                session.add(Activity(**clone))
         await asyncio.gather(*[downloader.remove_from_history(cfg, nzo_id) for nzo_id, downloader in nzo_to_dl.items()], return_exceptions=True)
         await session.commit()
 

@@ -7,12 +7,15 @@ class ProwlarrService(BaseIndexer):
     async def search(self, q, cfg, audio):
         params = {
             "query": q,
-            "categories": self.audio_categories if audio else self.book_categories,
             "type": "search",
             "apikey": self.apikey,
             "limit": 100,
             "offset": 0
         }
+        if audio:
+            if self.audio_categories: params["categories"] = self.audio_categories
+        else:
+            if self.book_categories: params["categories"] = self.book_categories
         response = await get_http(self.url+"/v1/search", params=params)
         if response.status_code != 200: raise IndexerError(status_code=response.status_code, detail="Could not connect to prowlarr", exception=response.text)
         response.encoding = 'utf-8'

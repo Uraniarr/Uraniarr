@@ -16,10 +16,13 @@ class NewznabService(BaseIndexer):
         self.last_hit = time()
         search = {
             "t": "search",
-            "cat": self.audio_categories if audio else self.book_categories,
             "q": q,
             "apikey": self.apikey
         }
+        if audio:
+            if self.audio_categories: search["cat"] = self.audio_categories
+        else:
+            if self.book_categories: search["cat"] = self.book_categories
         response = await get_http(self.url, params=search)
         if response.status_code != 200: raise IndexerError(status_code=response.status_code, detail="Could not connect to indexer", exception=response.text)
         if "error" in response.text: raise IndexerError(status_code=403, detail="Could not connect to indexer", exception=response.text)
