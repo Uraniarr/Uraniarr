@@ -92,7 +92,7 @@ import ConfirmModal from '@/components/ConfirmModal.vue'
 import ManualSearch from '@/components/ManualSearch.vue'
 import EditModal from '@/components/EditModal.vue'
 import RetagAuthorModal from '@/components/RetagAuthorModal.vue'
-import type { Author, BookNzb, Book, Series, InteractiveSearch, RetagAuthor } from '@/main.ts'
+import type { Author, BookFound, Book, Series, InteractiveSearch, RetagAuthor } from '@/main.ts'
 
 const route = useRoute()
 const router = useRouter()
@@ -113,7 +113,7 @@ const prv = ref<RetagAuthor>()
 const messageConfirmSeries = ref("")
 const shouldDeleteSeries = ref("")
 const seriesGroups = ref<Array<{ series: Series; books: Book[] }>>([])
-const manualSearchVersions = ref<BookNzb[]>([])
+const manualSearchVersions = ref<BookFound[]>([])
 const query = ref("")
 const manualSearchKey = ref("")
 const manualSearchPages = ref(0)
@@ -246,10 +246,10 @@ async function downloadBook(keys: string[]) {
   fetchBooks()
 }
 
-async function downloadBookManual(key: string, nzb: BookNzb) {
-  console.log(nzb)
+async function downloadBookManual(key: string, found: BookFound) {
+  console.log(found)
   try {
-    await dapi.post('/guid', {book_key : key, guid : nzb.guid, download : nzb.download, name : nzb.name, i_idx: nzb.i_idx}, { params: { audio : audio.value } })
+    await dapi.post('/guid', {book_key : key, guid : found.guid, download : found.download, name : found.name, i_idx: found.i_idx, protocol: found.protocol}, { params: { audio : audio.value } })
     interactiveSearch.value = false
   } catch (error: any) {
     notify({

@@ -128,7 +128,7 @@ import EditModal from '@/components/EditModal.vue'
 import ManualSearch from '@/components/ManualSearch.vue'
 import { getInitials, formatSize, runBatch, loadingEntities } from '@/utils.ts'
 import { useRoute, useRouter } from 'vue-router'
-import type { BookNzb, Book, InteractiveSearch, PreviewRetag } from '@/main.ts'
+import type { BookFound, Book, InteractiveSearch, PreviewRetag } from '@/main.ts'
 import RetagModal from '@/components/RetagBookModal.vue'
 import LoadingButton from '@/components/LoadingButton.vue'
 import { notify } from '@kyvg/vue3-notification'
@@ -141,7 +141,7 @@ const showConfirmDelete = ref(false)
 const showEditor = ref(false)
 const showRetag = ref(false)
 const interactiveSearch = ref(false)
-const manualSearchVersions = ref<BookNzb[]>([])
+const manualSearchVersions = ref<BookFound[]>([])
 const query = ref("")
 const manualSearchKey = ref("")
 const manualSearchPages = ref(0)
@@ -216,7 +216,7 @@ async function downloadBook(keys: string[]) {
 }
 
 
-async function downloadBookManual(key: string, nzb: BookNzb) {
+async function downloadBookManual(key: string, nzb: BookFound) {
   try {
     await dapi.post('/guid', {book_key : key, guid : nzb.guid, download : nzb.download, name : nzb.name, i_idx: nzb.i_idx}, { params: { audio : audio.value } })
   } catch (error: any) {

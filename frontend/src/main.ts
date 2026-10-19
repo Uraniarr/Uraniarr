@@ -37,7 +37,7 @@ export interface Activity {
 
 export interface InteractiveSearch{
   query: string
-  nzbs: BookNzb[]
+  nzbs: BookFound[]
   pages: number
 }
 
@@ -70,12 +70,13 @@ export interface Book {
   activities: Activity[]
 }
 
-export interface BookNzb {
+export interface BookFound {
   name: string
   guid: string
   size: string | number
   download: string
   i_idx: number
+  protocol: "usenet" | "direct" | null;
 }
 
 export interface Author {
@@ -94,11 +95,14 @@ export interface Indexer {
   name: string;
   url: string;
   apikey: string;
-  type: string;
+  type: "newznab" | "prowlarr" | "lib";
   book: boolean;
   audio: boolean;
   audio_categories: string;
   book_categories: string;
+  protocol: "usenet" | "direct" | null;
+  usenet?: boolean;
+  torrent?: boolean;
 }
 
 export interface Downloader {

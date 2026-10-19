@@ -9,6 +9,7 @@ class BaseDownloader(ABC):
         self.apikey = dwn_cfg["apikey"].strip()
         self.download_category = dwn_cfg["download_categories"]
         self.i_idx = downloaderi_idx
+        self.supported_protocols = []
 
     @abstractmethod
     async def test(self, cfg: ConfigManager) -> bool:

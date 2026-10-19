@@ -4,6 +4,12 @@ from backend.services.indexer.base_indexer import BaseIndexer
 from backend.exceptions import IndexerError
 
 class ProwlarrService(BaseIndexer):
+
+    def __init__(self, idx_cfg, indexeri_idx):
+        super().__init__(idx_cfg, indexeri_idx)
+        self.usenet = idx_cfg.usenet
+        self.torrent = idx_cfg.torrent
+
     async def search(self, q, cfg, audio):
         params = {
             "query": q,
@@ -12,6 +18,12 @@ class ProwlarrService(BaseIndexer):
             "limit": 100,
             "offset": 0
         }
+        if self.usenet and not self.torrent:
+            params["indexerIds"] = -1
+        elif self.torrent and not self.usenet:
+            params["indexerIds"] = -2
+        elif not self.usenet and not self.torrent:
+            raise IndexerError(f"Neither usenet nor torrent are selected... aborting")
         if audio:
             if self.audio_categories: params["categories"] = self.audio_categories
         else:
@@ -40,7 +52,8 @@ class ProwlarrService(BaseIndexer):
                 "guid": item["guid"].split("/")[-1],
                 "size": item["size"],
                 "download": item["downloadUrl"],
-                "i_idx": self.i_idx
+                "i_idx": self.i_idx,
+                "protocol": item["protocol"]
             } for item in data]
         except KeyError as e:
             raise IndexerError(status_code=500, detail="Ran into a key error. Are we pointing to prowlarr or newznab?", exception=e)
@@ -68,5 +81,5 @@ class ProwlarrService(BaseIndexer):
             download = item["downloadUrl"]
         except KeyError as e:
             raise IndexerError(status_code=500, detail="Ran into a key error. Are we pointing to prowlarr or newznab?", exception=e)
-        return name, guid, download
+        return name, guid, download, item["protocol"]
 

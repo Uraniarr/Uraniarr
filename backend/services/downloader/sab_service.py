@@ -6,6 +6,11 @@ from pathlib import Path
 from backend.dependencies import get_logger
 
 class SABDownloader(BaseDownloader):
+
+    def __init__(self, dwn_cfg, downloaderi_idx):
+        super().__init__(dwn_cfg, downloaderi_idx)
+        self.supported_protocols = ["usenet"]
+
     async def download(self, nzb, cfg, nzbname):
         try:
             files = {

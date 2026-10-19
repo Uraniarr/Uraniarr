@@ -1,4 +1,5 @@
 from backend.dependencies import get_logger
+from backend.services.indexer.lib_indexer import LibService
 from backend.services.indexer.newznab_service import NewznabService
 from backend.services.indexer.prowlarr_service import ProwlarrService
 
@@ -15,6 +16,10 @@ def indexer_factory(cfg):
         elif indexer["type"] == "prowlarr":
             if indexer.get("book"): r[False].append(ProwlarrService(indexer, len(r[False])))
             if indexer.get("audio"): r[True].append(ProwlarrService(indexer, len(r[True])))
+        elif indexer["type"] == "lib":
+            if indexer.get("book"): r[False].append(LibService(indexer, len(r[False])))
+            else:
+                get_logger().error(f"Indexer of type lib dont support audiobooks")
         else:
             get_logger().error(f"Unknown indexer type: {indexer['type']}")
     return r

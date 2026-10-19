@@ -1,3 +1,4 @@
+
 <template>
   <div v-if="visible" class="overlay">
     <div class="modal">
@@ -14,18 +15,26 @@
           <input v-model="form.url" required />
         </label>
 
-        <label>
+        <label v-if="form.type !== 'lib'">
           API Key:
           <input v-model="form.apikey" required />
         </label>
 
         <label>
           Type:
-          <input v-model="form.type" required />
+          <select v-model="form.type" required>
+            <option disabled value="">Select a type..</option>
+            <option value="sab">SABnzbd</option>
+            <option value="lib">Library</option>
+          </select>
         </label>
 
         <label class="checkbox">
-          <input type="checkbox" v-model="form.audio" />
+          <input
+            type="checkbox"
+            v-model="form.audio"
+            :disabled="form.type === 'lib'"
+          />
           Use downloader for audio
         </label>
 
@@ -34,14 +43,25 @@
           Use downloader for book
         </label>
 
-        <label>
+        <label v-if="form.type !== 'lib'">
           Downloader Category:
           <input v-model="form.download_categories" />
         </label>
 
         <div class="actions">
-          <button class="btns material-symbols-outlined" type="submit">save</button>
-          <button class="btns material-symbols-outlined" type="button" @click="$emit('close')">close</button>
+          <button
+            class="btns material-symbols-outlined"
+            type="submit"
+          >
+            save
+          </button>
+          <button
+            class="btns material-symbols-outlined"
+            type="button"
+            @click="$emit('close')"
+          >
+            close
+          </button>
         </div>
       </form>
     </div>
@@ -59,44 +79,56 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    (e: 'save', payload: { idx: number; downloader: Downloader }): void
-    (e: 'close'): void
+  (e: "save", payload: { idx: number; downloader: Downloader }): void;
+  (e: "close"): void;
 }>();
 
-// --- Local form state ---
 const form = reactive({
   name: props.downloader.name,
   url: props.downloader.url,
   apikey: props.downloader.apikey,
   type: props.downloader.type,
-  audio: props.downloader.audio,
+  audio: props.downloader.type === "lib" ? false : props.downloader.audio,
   book: props.downloader.book,
   download_categories: props.downloader.download_categories,
 });
 
-// --- Re-init form when new indexer is passed ---
+// Reinitialize when another downloader is selected
 watch(
   () => props.downloader,
-  (newIdx) => {
+  (newDownloader) => {
     Object.assign(form, {
-      name: newIdx.name,
-      url: newIdx.url,
-      apikey: newIdx.apikey,
-      type: newIdx.type,
-      audio: newIdx.audio,
-      audio_categories: [...newIdx.download_categories],
+      name: newDownloader.name,
+      url: newDownloader.url,
+      apikey: newDownloader.apikey,
+      type: newDownloader.type,
+      audio: newDownloader.type === "lib"
+        ? false
+        : newDownloader.audio,
+      book: newDownloader.book,
+      download_categories: newDownloader.download_categories,
     });
   },
   { immediate: true }
 );
 
-// --- Validation ---
-function isValid() {
-  return (
+// Disable audio when Library is selected
+watch(
+  () => form.type,
+  (type) => {
+    if (type === "lib") {
+      form.audio = false;
+    }
+  }
+);
+
+// Validation
+function isValid(): boolean {
+  return Boolean(
     form.name.trim() &&
     form.url.trim() &&
-    form.apikey.trim() &&
-    form.type.trim()
+    form.type.trim() &&
+    (form.type === "lib" || form.apikey.trim())
   );
 }
 
@@ -106,9 +138,9 @@ function handleSubmit() {
   const output: Downloader = {
     name: form.name,
     url: form.url,
-    apikey: form.apikey,
+    apikey: form.type === "lib" ? "" : form.apikey,
     type: form.type,
-    audio: form.audio,
+    audio: form.type === "lib" ? false : form.audio,
     book: form.book,
     download_categories: form.download_categories,
   };
@@ -116,6 +148,7 @@ function handleSubmit() {
   emit("save", { idx: props.idx, downloader: output });
 }
 </script>
+
 
 <style scoped>
 .overlay {
