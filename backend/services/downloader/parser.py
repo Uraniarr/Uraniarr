@@ -17,5 +17,4 @@ def downloader_factory(cfg):
                 get_logger().error(f"Indexer of type lib dont support audiobooks")
         else:
             get_logger().error(f"Unknown indexer type: {downloader['type']}")
-            return
     return r

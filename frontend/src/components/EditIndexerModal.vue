@@ -148,8 +148,8 @@ function isValid() {
   return (
     form.name.trim() &&
     form.url.trim() &&
-    form.apikey.trim() &&
     form.type.trim() &&
+    (form.type === "lib" || form.apikey.trim()) &&
     (
       form.type !== "prowlarr" ||
       form.usenet ||
@@ -164,7 +164,7 @@ function handleSubmit() {
   const output: Indexer = {
     name: form.name,
     url: form.url,
-    apikey: form.apikey,
+    apikey: form.type === "lib" ? "" : form.apikey,
     type: form.type,
     book: form.book,
     audio: form.type === "lib" ? false : form.audio,
