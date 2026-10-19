@@ -35,7 +35,8 @@ class LibDownloader(BaseDownloader):
 
 
     async def get_history(self, cfg):
-        txt: str = Path(cfg.config_dir/"lib_downloader.hist").read_text()
+        hist_file = Path(cfg.config_dir/"lib_downloader.hist")
+        txt: str = hist_file.read_text() if hist_file.exists() else ""
         data = [f.split(",") for f in txt.splitlines()]
         r = {_id : {
             "percentage": 100,
