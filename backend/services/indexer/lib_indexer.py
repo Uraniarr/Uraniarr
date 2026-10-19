@@ -48,13 +48,8 @@ class LibService(BaseIndexer):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-
         stdout, stderr = await proc.communicate()
-
         if proc.returncode != 0:
-            raise RuntimeError(
-                f"CLI failed ({proc.returncode}): {stderr.decode()}"
-            )
-
+            raise IndexerError(f"CLI failed ({proc.returncode}): {stderr.decode()}")
         return json.loads(stdout)
 

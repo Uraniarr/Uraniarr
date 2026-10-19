@@ -20,3 +20,6 @@ class FileError(BaseError):
 
 class IndexerError(BaseError):
     pass
+
+class DownloaderError(BaseError):
+    pass
