@@ -79,7 +79,7 @@ const settingNames: Record<string, string> = {
   book_path: 'Book Storage Path',
   import_poll_interval: 'Import Poll Interval (seconds)',
   rescan_interval: 'Rescan Interval (seconds)',
-  reimport_interval: 'Reimport Interval (seconds)',
+  reimport_interval: 'EXPERIMENTAL Reimport Interval (seconds)',
   indexer_timeout: 'Indexer Timeout (seconds)',
   audio_extensions_rating: 'Allowed Audio Extensions',
   book_extensions: 'Allowed Book Extensions',
