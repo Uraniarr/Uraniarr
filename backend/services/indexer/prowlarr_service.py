@@ -7,8 +7,8 @@ class ProwlarrService(BaseIndexer):
 
     def __init__(self, idx_cfg, indexeri_idx):
         super().__init__(idx_cfg, indexeri_idx)
-        self.usenet = idx_cfg.usenet
-        self.torrent = idx_cfg.torrent
+        self.usenet = idx_cfg.get("usenet", True)
+        self.torrent = idx_cfg.get("torrent", True)
 
     async def search(self, q, cfg, audio):
         params = {

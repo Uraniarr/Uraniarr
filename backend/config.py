@@ -93,6 +93,10 @@ class ConfigManager:
                 "value": "ger",
                 "input_type": "text"
             },
+            "lib_downloader_path": {
+                "value": "/opt/uraniarr",
+                "input_type": "text"
+            },
             "playwright": {
                 "value": True,
                 "input_type": "checkbox"

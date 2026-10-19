@@ -16,7 +16,7 @@
 
         <label v-if="form.type !== 'lib'">
           API Key:
-          <input v-model="form.apikey" :required="form.type !== 'lib'" />
+          <input v-model="form.apikey" required />
         </label>
 
         <label>
@@ -132,12 +132,12 @@ watch(
   }
 );
 
-function getProtocol(): "direct" | "nzb" | null {
+function getProtocol(): "direct" | "usenet" | null {
   switch (form.type) {
     case "lib":
       return "direct";
     case "newznab":
-      return "nzb";
+      return "usenet";
     case "prowlarr":
     default:
       return null;
