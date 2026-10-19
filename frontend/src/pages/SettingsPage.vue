@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, toRaw } from 'vue'
+import { ref, onMounted } from 'vue'
 import { api, type Downloader, type Indexer } from '@/main.ts'
 import { notify } from '@kyvg/vue3-notification'
 import IndexerList from '@/components/IndexerList.vue'
@@ -188,45 +188,23 @@ async function getSettings() {
   }
 }
 
-const INDEXER_KEYS = ["name","url","apikey","type","book","audio","audio_categories","book_categories"] as const satisfies readonly (keyof Indexer)[]
-const DOWNLOADER_KEYS = ["name","url","apikey","type","audio","book","download_categories"] as const satisfies readonly (keyof Downloader)[]
 
-function changedObjects<T extends object>(newArr: T[], oldArr: T[], keys: readonly (keyof T)[]): T[] {
-  const changed: T[] = []
-  for (let i = 0; i < newArr.length; i++) {
-    const n = newArr[i]
-    const o = oldArr[i]
-    if (!o) { changed.push(n); continue }
-    for (const k of keys) {
-      if (n[k] !== o[k]) { changed.push(n); break }
-    }
-  }
-  return changed
-}
-
-
-function getChangedFields() {
+function getChangedFields(): Record<string, unknown> {
   const patch: Record<string, unknown> = {}
-  const current = toRaw(settings.value)
-  const original = toRaw(originalSettings.value)
-
-  for (const [key, cfg] of Object.entries(current)) {
-    const oldVal = (original[key] || {}).value
+  for (const [key, cfg] of Object.entries(settings.value)) {
+    const oldVal = originalSettings.value[key]?.value
     const newVal = cfg.value
-    if (key === "indexers") {
-      const changedIdxs = changedObjects(newVal as Indexer[], oldVal as Indexer[], INDEXER_KEYS)
-      if (changedIdxs.length) patch[key] = changedIdxs
-    }
-    else if (key === "downloaders") {
-      const changedDls = changedObjects(newVal as Downloader[], oldVal as Downloader[], DOWNLOADER_KEYS)
-      if (changedDls.length) patch[key] = changedDls
-    }
-    else if (newVal !== oldVal) {
+    if (key === "indexers" || key === "downloaders") {
+      if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+        patch[key] = newVal
+      }
+    } else if (newVal !== oldVal) {
       patch[key] = newVal
     }
   }
   return patch
 }
+
 
 async function saveSettings() {
   const patch = getChangedFields()
