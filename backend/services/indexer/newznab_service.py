@@ -50,7 +50,7 @@ class NewznabService(BaseIndexer):
                 return { "query": base_queries[page], "nzbs": [], "pages": len(base_queries)}
             response = []
             for item in data.findall(".//item"):
-                i = {"name": item.find("title").text, "i_idx": self.i_idx, "download": item.find("link").text}
+                i = {"name": item.find("title").text, "i_idx": self.i_idx, "download": item.find("link").text, "protocol": self.protocol}
                 for attribute in item.findall("newznab:attr", ns):
                     if attribute.attrib["name"] == "guid":
                         i["guid"] = attribute.attrib["value"]
@@ -93,5 +93,5 @@ class NewznabService(BaseIndexer):
         except KeyError as e:
             raise IndexerError(status_code=500, detail=f"Ran into a key error. Are we pointing to prowlarr or newznab?", exception=e)
         get_logger().log(5, f"Found release {name} for {book.name}")
-        return name, guid, download
+        return name, guid, download, self.protocol
 

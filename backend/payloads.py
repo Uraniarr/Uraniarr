@@ -14,6 +14,7 @@ class ManualGUIDDownload(BaseModel):
     name: str
     download: str = None
     i_idx: int
+    protocol: str
 
 class BookNzb(BaseModel):
   name: str

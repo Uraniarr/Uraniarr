@@ -14,9 +14,9 @@
           <input v-model="form.url" required />
         </label>
 
-        <label>
+        <label v-if="form.type !== 'lib'">
           API Key:
-          <input v-model="form.apikey" required />
+          <input v-model="form.apikey" :required="form.type !== 'lib'" />
         </label>
 
         <label>
@@ -25,6 +25,7 @@
             <option disabled value="">Select a type..</option>
             <option value="newznab">Newznab</option>
             <option value="prowlarr">Prowlarr</option>
+            <option value="lib">Library</option>
           </select>
         </label>
 
@@ -34,16 +35,32 @@
         </label>
 
         <label class="checkbox">
-          <input type="checkbox" v-model="form.audio" />
+          <input
+            type="checkbox"
+            v-model="form.audio"
+            :disabled="form.type === 'lib'"
+          />
           Audio Indexer
         </label>
 
-        <label>
+        <template v-if="form.type === 'prowlarr'">
+          <label class="checkbox">
+            <input type="checkbox" v-model="form.usenet" />
+            Enable Usenet
+          </label>
+
+          <label class="checkbox">
+            <input type="checkbox" v-model="form.torrent" />
+            Enable Torrents
+          </label>
+        </template>
+
+        <label v-if="form.type !== 'lib'">
           Audio Categories (comma separated):
           <input v-model="form.audio_categories" />
         </label>
 
-        <label>
+        <label v-if="form.type !== 'lib'">
           Book Categories (comma separated):
           <input v-model="form.book_categories" />
         </label>
@@ -68,11 +85,10 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    (e: 'save', payload: { idx: number; indexer: Indexer }): void
-    (e: 'close'): void
+  (e: "save", payload: { idx: number; indexer: Indexer }): void;
+  (e: "close"): void;
 }>();
 
-// --- Local form state ---
 const form = reactive({
   name: props.indexer.name,
   url: props.indexer.url,
@@ -82,9 +98,11 @@ const form = reactive({
   audio: props.indexer.audio,
   audio_categories: props.indexer.audio_categories,
   book_categories: props.indexer.book_categories,
+  usenet: props.indexer.usenet ?? true,
+  torrent: props.indexer.torrent ?? true,
 });
 
-// --- Re-init form when new indexer is passed ---
+// Reinitialize when the indexer changes
 watch(
   () => props.indexer,
   (newIdx) => {
@@ -94,21 +112,49 @@ watch(
       apikey: newIdx.apikey,
       type: newIdx.type,
       book: newIdx.book,
-      audio: newIdx.audio,
+      audio: newIdx.type === "lib" ? false : newIdx.audio,
       audio_categories: newIdx.audio_categories,
       book_categories: newIdx.book_categories,
+      usenet: newIdx.usenet ?? true,
+      torrent: newIdx.torrent ?? true,
     });
   },
   { immediate: true }
 );
 
-// --- Validation ---
+
+watch(
+  () => form.type,
+  (type) => {
+    if (type === "lib") {
+      form.audio = false;
+    }
+  }
+);
+
+function getProtocol(): "direct" | "nzb" | null {
+  switch (form.type) {
+    case "lib":
+      return "direct";
+    case "newznab":
+      return "nzb";
+    case "prowlarr":
+    default:
+      return null;
+  }
+}
+
 function isValid() {
   return (
     form.name.trim() &&
     form.url.trim() &&
     form.apikey.trim() &&
-    form.type.trim()
+    form.type.trim() &&
+    (
+      form.type !== "prowlarr" ||
+      form.usenet ||
+      form.torrent
+    )
   );
 }
 
@@ -121,9 +167,12 @@ function handleSubmit() {
     apikey: form.apikey,
     type: form.type,
     book: form.book,
-    audio: form.audio,
+    audio: form.type === "lib" ? false : form.audio,
     audio_categories: form.audio_categories,
     book_categories: form.book_categories,
+    protocol: getProtocol(),
+    usenet: form.type === "prowlarr" ? form.usenet : false,
+    torrent: form.type === "prowlarr" ? form.torrent : false,
   };
 
   emit("save", { idx: props.idx, indexer: output });

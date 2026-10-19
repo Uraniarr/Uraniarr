@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship, case
 from time import time

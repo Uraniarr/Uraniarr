@@ -24,13 +24,14 @@ async def download_book(request: Request, book_id: str,  audio: bool = True, ses
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
     for indexer in indexers:
-        name, guid, download = await indexer.query_book(book, cfg=cfg, audio=audio)
+        name, guid, download, protocol = await indexer.query_book(book, cfg=cfg, audio=audio)
         if not download:
             continue
         nzb = await indexer.grab(download, cfg=cfg)
         break
     else:
         raise HTTPException(status_code=404, detail=f"Book {book.name} not found")
+    downloaders: list[BaseDownloader] = [downloader for downloader in request.app.state.downloaders[audio] if protocol in downloader.supported_protocols]
     activity = await schedule_download(guid, name, nzb, book=book, downloaders=downloaders, cfg=cfg, audio=audio)
     if isinstance(activity, Activity):
         session.add(activity)
@@ -43,9 +44,9 @@ async def download_book(request: Request, book_id: str,  audio: bool = True, ses
 async def download_guid(request: Request, data: ManualGUIDDownload, audio: bool = True, session: AsyncSession = Depends(get_session)):
     cfg = request.app.state.cfg_manager
     indexers: list[BaseIndexer] = request.app.state.indexers[audio]
-    downloaders: list[BaseDownloader] = request.app.state.downloaders[audio]
     book = await session.get(Book, data.book_key)
     nzb = await indexers[data.i_idx].grab(data.download, cfg=cfg)
+    downloaders: list[BaseDownloader] = [downloader for downloader in request.app.state.downloaders[audio] if data.protocol in downloader.supported_protocols]
     activity=await schedule_download(data.guid, data.name, nzb, book=book, downloaders=downloaders, cfg=cfg, audio=audio)
     if isinstance(activity, Activity):
         session.add(activity)
@@ -190,6 +191,7 @@ async def delete_activity(request: Request, activity_id: str, session: AsyncSess
 async def schedule_download(guid: str, release_title: str, nzb : bytes, downloaders: list[BaseDownloader], cfg: ConfigManager, book: Book, audio: bool):
     for downloader in downloaders:
         data = await downloader.download(nzb, nzbname=release_title, cfg=cfg)
+        if data: break
     if not data:
 
         return {"book": book, "error": "Download failed", "code": 500}

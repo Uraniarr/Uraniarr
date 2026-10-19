@@ -252,8 +252,6 @@ async def update_settings(settings: dict[str, Any], request: Request):
         setattr(cfg, key, settings[key])
         if key == "playwright":
             await reload_scraper(state)
-        elif key == "indexer_prowlarr":
-            state.indexer = ProwlarrService() if settings[key] else NewznabService()
         elif key == "downloaders":
             state.downloaders = downloader_factory(cfg)
         elif key == "indexers":

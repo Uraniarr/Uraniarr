@@ -45,11 +45,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { BookNzb } from '@/main.ts'
+import type { BookFound } from '@/main.ts'
 import { formatSize } from '@/utils.ts'
 
 const props = defineProps<{
-  versions: BookNzb[]
+  versions: BookFound[]
   visible: boolean
   query: string
   book: string
@@ -60,7 +60,7 @@ var page = ref(0)
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'select', key: string, file: BookNzb): void
+  (e: 'select', key: string, file: BookFound): void
   (e: 'paginate', key: string, page: number): void
 }>()
 
@@ -69,7 +69,7 @@ function close() {
   page.value = 0
 }
 
-function choose(file: BookNzb) {
+function choose(file: BookFound) {
   emit('select', props.book, file)
 }
 
