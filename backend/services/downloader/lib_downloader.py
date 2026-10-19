@@ -23,7 +23,7 @@ class LibDownloader(BaseDownloader):
         return proc.returncode == 0
 
     async def download(self, nzb, cfg, nzbname):
-        tmp = mkdtemp()
+        tmp = mkdtemp(dir=cfg.lib_downloader_path)
         await self.run_cli(["download", nzb, "--dir", tmp], cfg)
         files = list(Path(tmp).iterdir())
         if len(files) != 1:
