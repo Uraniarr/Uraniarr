@@ -50,19 +50,21 @@ async def fetch(cfg: ConfigManager, url: str, params: dict, xhr: bool) -> dict:
     target = f"{url}?{urlencode(params)}" if params else url
     if cfg.playwright:
         page = await scraper.new_page()
-        if xhr:
-            get_logger().log(5, f"Using playwright#expect_response to GET {target}")
-            async with page.expect_response(target) as response_info:
-                await page.goto(target)
-            response = await response_info.value
+        try:
+            response = await page.goto(target, wait_until="load")
+            if response is None:
+                raise ScrapeError(status_code=500, detail="No response received")
             if response.status != 200:
-                raise ScrapeError(status_code=response.status, detail=response.text)
-            data = await response.body()
-        else:
-            get_logger().log(5, f"Using playwright#goto to GET {target}")
-            await page.goto(target)
-            data = await page.content()
-        await page.close()
+                err = await response.text()
+                if "Sicherheits-Check" in err:
+                    err = "CloudFlare Error - Try to enable Playwright or try again"
+                raise ScrapeError(status_code=response.status, detail=err)
+            if xhr:
+                data = await response.body()  # Raw JSON bytes
+            else:
+                data = await page.content()
+        finally:
+            await page.close()
     else:
         get_logger().log(5, f"Using cloudscraper to GET {target}")
         response = await asyncio.to_thread(scraper.get, target)
@@ -77,7 +79,7 @@ async def fetch_or_cached(cfg: ConfigManager, url: str, params: dict = {}, xhr: 
     key = (url, tuple(sorted(params.items())))
     now = time()
     if not cfg.skip_cache and key in _cache and now - _cache[key]["time"] < 5*24*3600:
-        get_logger().log(5, f"Using cache for {url}")
+        get_logger().log(5, f"Using cache for {url} with {params}")
         data = _cache[key]["data"]
     else:
         data = await fetch(cfg, url, params, xhr)

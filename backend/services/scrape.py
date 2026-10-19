@@ -46,7 +46,7 @@ async def scrape_book_editions(book_id: str, cfg)-> tuple[list[dict], str]:
         ed_info = {}
         ed_info["key"] = werk["ID"]["matnr"]
         ed_info["titel"] = werk["titel"]
-        ed_info["bild"] = werk["media"]["bilder"][0]["urlTemplateFixedScaling"].format(resolutionKey="00")
+        ed_info["bild"] = werk["media"]["bilder"][0]["migrationUrlTemplateFixedScaling"].format(resolutionKey="00")
         ed_info["medium"] = werk["shop"]["identNr"]
         if data["serie"]["hatSerienslider"] or data["serie"].get("nummer") or data["serie"].get("name"):
             is_bndl = False
@@ -75,7 +75,7 @@ async def scrape_author_data(author_id: str, cfg: ConfigManager, name:str=None, 
     elif (name:=soup.find(class_="autor-name")):
         author_data["name"] = name.get_text(strip=True)
     if (bio_container := soup.find(class_="autor-portrait")):
-        if (bio_div := bio_container.find("div", class_="toggle-text-content")):
+        if (bio_div := bio_container.find("div", class_="element-text-standard")):
             author_data["bio"] = bio_div.get_text().strip()
     if metadata_only:
         if author_data.get("name") is None:
@@ -123,7 +123,7 @@ async def scrape_book_series(book_id: str, cfg: ConfigManager):
             book_info = {}
             book_info["key"] = werk["ID"]["matnr"]
             book_info["titel"] = clean_title(werk["titel"], werk["serie"].get("name"), werk["serie"].get("nummer"))
-            book_info["bild"] = werk["media"]["bilder"][0]["urlTemplateFixedScaling"].format(resolutionKey="00")
+            book_info["bild"] = werk["media"]["bilder"][0]["migrationUrlTemplateFixedScaling"].format(resolutionKey="00")
             book_info["medium"] = werk["shop"]["identNr"]
             is_bndl = False
             for bndl in cfg.known_bundles.split(","):

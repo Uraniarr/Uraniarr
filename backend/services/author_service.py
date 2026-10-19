@@ -22,41 +22,52 @@ async def save_author_to_db(author_id: str, session: AsyncSession, scraped: dict
 
 async def add_books_to_author(author: Author, session: AsyncSession, books_data: list):
     found_series: dict[str, Series] = {}
-    sanity_dedub = set() # see A1040945738 for funky shit
-    result = await session.exec(select(Edition.key))
-    in_db = set(result.all())
+    # see A1040945738 for funky shit
+    result = await session.exec(select(Edition.key, Edition.book_key))
+    edition_to_book = dict(result.all())
+    processed_books: dict[str, Book] = {}
+
     for eds, series_title in books_data:
         if not eds:
             get_logger().debug(f"Skipping book because it has no editions")
             continue
         eds = sorted(eds, key=lambda x: medium_priority.get(x["medium"], 10))
-        if any([ed["key"] in in_db for ed in eds]):
-            get_logger().debug(f"Skipping {eds[0]['key']} because it already exists")
+        existing_book_key = next((edition_to_book[ed["key"]] for ed in eds if ed["key"] in edition_to_book), None)
+        if existing_book_key is not None:
+            book = await session.get(Book, existing_book_key)
+        else:
+            book = next((processed_books[ed["key"]] for ed in eds if ed["key"] in processed_books), None)
+        new_editions = [ed for ed in eds if ed["key"] not in edition_to_book and ed["key"] not in processed_books]
+        if book is not None and book.bild != eds[0].get("bild"):
+            book.bild = eds[0].get("bild")
+        if not new_editions:
+            get_logger().debug(f"Skipping {eds[0]['key']} because all editions already exist")
             continue
-        book = Book(autor_key=author.key)
-        book.name, book.bild, book.position = clean_title(eds[0].get("titel")), eds[0].get("bild"), eds[0].get("_pos")
-        if series_title:
-            ctitles = [clean_title(ed.get("titel"), series_title, ed.get("_pos")) for ed in eds]
-            book.name = sorted(ctitles, key=lambda x: len(x))[0]
-            series = found_series.setdefault(series_title, Series(name=series_title, autor_key=author.key))
-            series.books.append(book)
-            # if book.position and (bs:=[b for b in series.books if b.position and int(b.position) == int(book.position)]):
-            #     for idx, b in enumerate(bs):
-            #         b.position = round(0.1*idx + int(book.position), 1) # maybe check date before??
-        editions = []
-        for i in eds:
-            if i["key"] in sanity_dedub or i["key"] in in_db:
-                continue
-            editions.append(Edition(**i))
-            sanity_dedub.add(i["key"])
-        book.editions = editions
-        author.books.append(book)
+        if book is None:
+            book = Book(autor_key=author.key)
+            book.name, book.bild, book.position = clean_title(eds[0].get("titel")), eds[0].get("bild"), eds[0].get("_pos")
+            if series_title:
+                ctitles = [clean_title(ed.get("titel"), series_title, ed.get("_pos")) for ed in eds]
+                book.name = sorted(ctitles, key=lambda x: len(x))[0]
+                series = found_series.setdefault(series_title, Series(name=series_title, autor_key=author.key))
+                series.books.append(book)
+                # if book.position and (bs:=[b for b in series.books if b.position and int(b.position) == int(book.position)]):
+                #     for idx, b in enumerate(bs):
+                #         b.position = round(0.1*idx + int(book.position), 1) # maybe check date before??
+            author.books.append(book)
+        for i in new_editions:
+            edition = Edition(**i)
+            edition.book = book
+            session.add(edition)
+        for ed in eds:
+            processed_books[ed["key"]] = book
+
     session.add(author)
     await session.flush()
     await session.refresh(author, attribute_names=["series"])
     await auto_union_series(author.series, session)
-    coros = [clean_series_duplicates(series, session) for series in author.series]
-    await asyncio.gather(*coros)
+    for series in author.series:
+        await clean_series_duplicates(series, session)
     resp = author.key
     await session.commit()
     return resp

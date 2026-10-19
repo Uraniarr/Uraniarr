@@ -49,7 +49,16 @@ async function add(author: string, name: string) {
   try {
     await api.post(`/author/${author}`, {}, { params: { name: name } })
     authorStatus[author].added = true
-  } finally {
+  } catch (error: any) {
+    notify({
+      title: 'Error',
+      text: error.response.data.detail,
+      type: 'error'
+    })
+    loading.value = false
+    errorMsg.value = error.message
+  }
+  finally {
     authorStatus[author].adding = false
   }
 }

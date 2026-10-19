@@ -120,6 +120,10 @@ async def complete_author(author_id: str, session: AsyncSession = Depends(get_se
         resp = await complete_series_in_db(author.series[0].key, session, data)
         return resp
     data = await scrape_all_author_data(author.key, cfg, author.name)
+    if author.bio != data["author_data"].get("bio"):
+        author.bio = data["author_data"].get("bio", author.bio)
+    if author.bild != data["author_data"].get("bild"):
+        author.bild = data["author_data"].get("bild", author.bild)
     resp = await add_books_to_author(author, session, data["books"])
     return resp
 
