@@ -74,7 +74,7 @@ class ConfigManager:
                 "input_type": "number"
             },
             "reimport_interval": {
-                "value": 3600,
+                "value": 0,
                 "input_type": "number"
             },
             "indexer_timeout": {
