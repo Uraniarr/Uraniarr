@@ -7,6 +7,7 @@ import asyncio
 import json
 
 from backend.config import ConfigManager
+from backend.dependencies import get_language_name
 from backend.exceptions import IndexerError
 from backend.services.indexer.base_indexer import BaseIndexer
 
@@ -18,7 +19,7 @@ class LibService(BaseIndexer):
         self.url = dwn_cfg["url"]
 
     async def search(self, q, cfg, audio):
-        data = await self.run_cli(["search", q, "-n", "10", "--language", cfg.language], cfg)
+        data = await self.run_cli(["search", q, "-n", "10", "--language", get_language_name(cfg)], cfg)
         return data
 
     async def query_manual(self, book, page, cfg, audio):

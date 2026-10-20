@@ -1,5 +1,6 @@
 import re
 import httpx
+import langcodes
 from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.config import ConfigManager
 from fastapi import Request
@@ -60,3 +61,44 @@ async def get_http(url, **kwargs):
     except Exception as e:
                 raise IndexerError(status_code=404, detail="Unknown outgoing error", exception=e)
     return response
+
+def get_language(cfg: ConfigManager) -> langcodes.Language:
+    value = cfg.language.strip().lower()
+
+    try:
+        if langcodes.tag_is_valid(value):
+            return langcodes.Language.get(value)
+        return langcodes.find(value)
+    except (LookupError, ValueError):
+        return langcodes.Language.get("de")
+
+
+def get_language_id(cfg: ConfigManager) -> int:
+    mapping = {
+        "eng": 1,
+        "deu": 3,
+        "fra": 2,
+        "spa": 84,
+        "ita": 88,
+        "tur": 975,
+        "por": 981,
+        "fin": 985,
+        "nld": 90,
+        "pol": 83,
+        "rus": 5,
+        "ara": 982,
+        "hun": 987,
+        "cat": 984,
+        "swe": 91,
+        "hrv": 1021,
+        "hin": 81,
+        "ell": 980,
+        "ukr": 1016,
+        "vie": 976,
+        "zho": 7,
+    }
+    return mapping.get(get_language(cfg).to_alpha3(), 3)
+
+
+def get_language_name(cfg: ConfigManager) -> str:
+    return get_language(cfg).display_name("en").lower()

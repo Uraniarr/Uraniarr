@@ -9,3 +9,4 @@ requests==2.32.4
 cloudscraper==1.2.71
 aiosqlite==0.21.0
 httpx==0.28.1
+langcodes==3.5.1

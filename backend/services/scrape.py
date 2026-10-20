@@ -1,6 +1,6 @@
 import re
 import asyncio
-from backend.dependencies import get_logger
+from backend.dependencies import get_language_id, get_logger
 from backend.services.request import fetch_or_cached
 from bs4 import BeautifulSoup
 from io import BytesIO
@@ -19,7 +19,7 @@ async def scrape_search(q: str, cfg: ConfigManager, page: int = 1):
         "suchbegriff": q,
         "artikelProSeite": "5",
         "seite": page,
-        "filterSPRACHE": get_language(cfg),
+        "filterSPRACHE": get_language_id(cfg),
     }
     data = await fetch_or_cached(cfg, base+suche, params=params)
     data = json.load(BytesIO(data))
@@ -86,7 +86,7 @@ async def scrape_author_data(author_id: str, cfg: ConfigManager, name:str=None, 
         "suchbegriff": author_data["name"],
         "artikelProSeite": "30",
         "seite": 1,
-        "filterSPRACHE": get_language(cfg),
+        "filterSPRACHE": get_language_id(cfg),
         "sortierung": "Erscheinungsdatum_asc"
     }
     _data = await fetch_or_cached(cfg, base+suche+"/mehr-von-autor", params)
@@ -135,32 +135,6 @@ async def scrape_book_series(book_id: str, cfg: ConfigManager):
                     book_info["_pos"] = None
             books.append(book_info)
     return books
-
-def get_language(cfg: ConfigManager):
-    mapping = {
-        "en": 1, "eng": 1,
-        "de": 3, "deu": 3, "ger": 3,
-        "fr": 2, "fra": 2, "fre": 2,
-        "es": 84, "spa": 84,
-        "it": 88, "ita": 88,
-        "tr": 975, "tur": 975,
-        "pt": 981, "por": 981,
-        "fi": 985, "fin": 985,
-        "nl": 90, "nld": 90, "dut": 90,
-        "pl": 83, "pol": 83,
-        "ru": 5, "rus": 5,
-        "ar": 982, "ara": 982,
-        "hu": 987, "hun": 987,
-        "ca": 984, "cat": 984,
-        "sv": 91, "swe": 91,
-        "hr": 1021, "hrv": 1021,
-        "hi": 81, "hin": 81,
-        "el": 980, "ell": 980, "gre": 980,
-        "uk": 1016, "ukr": 1016,
-        "vi": 976, "vie": 976,
-        "zh": 7, "zho": 7, "chi": 7
-    }
-    return mapping.get(cfg.language, 3)
 
 def strip_id(url: str):
     return url.strip("/").split("/")[-1].split("?")[0]
