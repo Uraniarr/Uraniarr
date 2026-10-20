@@ -31,9 +31,9 @@
           </option>
         </select>
         <IndexerList v-else-if="key === 'indexers'" :indexers="(settings.indexers?.value as Indexer[]) || []"
-        @edit-indexer="editIndexer"/>
+        :edit-indexer="editIndexer"/>
         <DownloaderList v-else-if="key === 'downloaders'" :downloaders="(settings.downloaders?.value as Downloader[]) || []"
-        @edit-downloader="editDownloader"/>
+        :edit-downloader="editDownloader"/>
         <input
           v-else
           :id="key + '-input'"
@@ -47,9 +47,9 @@
     </form>
   </div>
   <EditIndexerModal v-if="indexer" :indexer="indexer" :idx="indexerIdx" :visible="showModalIndexer"
-  @close="showModalIndexer=false" @save="changeIndexer"/>
+  :close="() => showModalIndexer=false" :save="changeIndexer"/>
   <EditDownloaderModal v-if="downloader" :downloader="downloader" :idx="downloaderIdx" :visible="showModalDownloader"
-  @close="showModalDownloader=false" @save="changeDownloader"/>
+  :close="() => showModalDownloader=false" :save="changeDownloader"/>
 </template>
 
 <script setup lang="ts">

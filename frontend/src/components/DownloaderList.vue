@@ -6,12 +6,12 @@
           <div class="title">{{ downloader.name }}</div>
           <div class="subtitle">{{ downloader.type }}</div>
         </div>
-        <button type="button" class="edit-btn material-symbols-outlined" @click="$emit('editDownloader', idx)">
+        <button type="button" class="edit-btn material-symbols-outlined" @click="props.editDownloader(idx)">
           edit
         </button>
       </div>
 
-      <div type="button" class="card add-card" @click="$emit('editDownloader', downloaders.length)">
+      <div type="button" class="card add-card" @click="props.editDownloader(downloaders.length)">
         <span class="plus material-symbols-outlined">add</span>
       </div>
     </div>
@@ -21,13 +21,10 @@
 <script setup lang="ts">
 import type { Downloader } from "@/main.ts";
 
-defineProps<{
-  downloaders: Downloader[];
-}>();
-
-defineEmits<{
-  (e: 'editDownloader', idx: number): void
-}>();
+const props = defineProps<{
+  downloaders: Downloader[]
+  editDownloader: (idx: number) => void
+}>()
 </script>
 
 <style scoped>

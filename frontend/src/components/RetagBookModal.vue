@@ -28,8 +28,8 @@
             </div>
 
             <div class="actions">
-                <button class="btns material-symbols-outlined" @click="emit('retagBook', [prv.book])" title="Apply retag">check</button>
-                <button class="btns material-symbols-outlined" @click="handleCancel" title="Cancel">cancel</button>
+                <button class="btns material-symbols-outlined" @click="props.retagBook([prv.book])" title="Apply retag">check</button>
+                <button class="btns material-symbols-outlined" @click="props.cancel()" title="Cancel">cancel</button>
             </div>
         </div>
     </div>
@@ -39,19 +39,12 @@
 import { diffDisplay } from '@/utils.ts'
 import type { PreviewRetag } from '@/main.ts'
 
-defineProps<{
-    visible: boolean
-    prv: PreviewRetag
+const props = defineProps<{
+  visible: boolean
+  prv: PreviewRetag
+  retagBook: (keys: string[]) => void | Promise<void>
+  cancel: () => void
 }>()
-
-const emit = defineEmits<{
-    (e: 'retagBook', key: string[]): void
-    (e: 'cancel'): void
-}>()
-
-function handleCancel() {
-    emit('cancel')
-}
 </script>
 
 <style scoped>

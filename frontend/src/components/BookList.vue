@@ -17,13 +17,12 @@
         :showBox="showBox"
         :checked="selected.includes(book.key)"
         :audio="audio"
-        :loading="loadingEntities[book.key]"
         :suppressMap="suppressMap"
-        @checkboxClick="onCheckboxClick($event, index)"
-        @downloadBook="downloadBook"
-        @searchBook="$emit('searchBook', $event)"
-        @deleteBook="deleteBook"
-        @editBook="$emit('editBook', $event)"
+        :checkboxClick="payload => onCheckboxClick(payload, index)"
+        :downloadBook="downloadBook"
+        :searchBook="props.searchBook"
+        :deleteBook="deleteBook"
+        :editBook="props.editBook"
       />
     </div>
   </div>
@@ -34,7 +33,6 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import BookItem from '@/components/BookItem.vue'
 import type { Book } from '@/main.ts'
-import { loadingEntities } from '@/utils';
 
 const props = defineProps<{
   books: Book[]
@@ -42,34 +40,26 @@ const props = defineProps<{
   seriesGroups: any
   audio: boolean
   suppressMap?: { [action: string]: boolean }
-}>()
-
-const emit = defineEmits<{
-  (e: 'downloadBook', key: string[]): void
-  (e: 'deleteBook', keys: string[]): void
-  (e: 'searchBook', keys: string): void
-  (e: 'editBook', book: Book): void
+  downloadBook?: (keys: string[]) => Promise<void>
+  deleteBook: (keys: string[]) => void
+  searchBook?: (key: string) => void
+  editBook?: (book: Book) => void
 }>()
 
 const selected = ref<string[]>([])
 const lastIndex = ref<number | null>(null)
 
 function deleteBook(keys: string[]) {
-  if (selected.value.length > 0) {
-    emit('deleteBook', selected.value)
-  } else {
-    emit('deleteBook', keys)
-  }
+  const books = selected.value.length ? selected.value : keys
+  props.deleteBook(books)
   selected.value = []
 }
 
-function downloadBook(keys: string[]) {
-  if (selected.value.length > 0) {
-    emit('downloadBook', selected.value)
-  } else {
-    emit('downloadBook', keys)
-  }
+async function downloadBook(keys: string[]) {
+  if (!props.downloadBook) return
+  const books = selected.value.length ? selected.value : keys
   selected.value = []
+  await props.downloadBook(books)
 }
 
 function onCheckboxClick(payload: { event: MouseEvent; key: string }, index: number) {

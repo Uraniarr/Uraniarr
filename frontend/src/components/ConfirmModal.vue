@@ -7,8 +7,8 @@
         <input class="selector" type="checkbox" :checked="checked" @click="checked = !checked"/>
       </div>
       <div class="actions">
-        <button class="btns material-symbols-outlined" @click="$emit('confirm', checked); checked = false">check</button>
-        <button class="btns material-symbols-outlined" @click="$emit('cancel'); checked = false">cancel</button>
+        <button class="btns material-symbols-outlined" @click="props.confirm(checked); checked = false">check</button>
+        <button class="btns material-symbols-outlined" @click="props.cancel(); checked = false">cancel</button>
       </div>
     </div>
   </div>
@@ -16,10 +16,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-defineProps<{ visible: boolean; message?: string, blocking?: boolean }>()
-defineEmits<{
-  (e: 'confirm', blocking?: boolean ): void
-  (e: 'cancel'): void
+const props = defineProps<{
+  visible: boolean
+  message?: string
+  blocking?: boolean
+  confirm: (blocking?: boolean) => void | Promise<void>
+  cancel: () => void
 }>()
 const checked = ref(false)
 </script>

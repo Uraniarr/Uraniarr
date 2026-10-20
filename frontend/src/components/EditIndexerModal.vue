@@ -67,7 +67,7 @@
 
         <div class="actions">
           <button class="btns material-symbols-outlined" type="submit">save</button>
-          <button class="btns material-symbols-outlined" type="button" @click="$emit('close')">close</button>
+          <button class="btns material-symbols-outlined" type="button" @click="props.close()">close</button>
         </div>
       </form>
     </div>
@@ -79,15 +79,12 @@ import { reactive, watch } from "vue";
 import type { Indexer } from "@/main.ts";
 
 const props = defineProps<{
-  visible: boolean;
-  indexer: Indexer;
-  idx: number;
-}>();
-
-const emit = defineEmits<{
-  (e: "save", payload: { idx: number; indexer: Indexer }): void;
-  (e: "close"): void;
-}>();
+  visible: boolean
+  indexer: Indexer
+  idx: number
+  save: (payload: { idx: number; indexer: Indexer }) => void
+  close: () => void
+}>()
 
 const form = reactive({
   name: props.indexer.name,
@@ -175,7 +172,7 @@ function handleSubmit() {
     torrent: form.type === "prowlarr" ? form.torrent : false,
   };
 
-  emit("save", { idx: props.idx, indexer: output });
+  props.save({ idx: props.idx, indexer: output })
 }
 </script>
 

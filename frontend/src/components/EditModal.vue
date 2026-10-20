@@ -2,7 +2,7 @@
   <div v-if="visible" class="overlay">
     <div class="modal">
       <h2>Edit: {{ form.name || 'Untitled Book' }}</h2>
-      <form @submit.prevent="$emit('editBook', getChangedFields())">
+      <form @submit.prevent="props.editBook(getChangedFields())">
         <label>
           Name:
           <div>
@@ -34,7 +34,7 @@
         </label>
         <div class="actions">
           <button class="btns material-symbols-outlined" type="submit">save</button>
-          <button class="btns material-symbols-outlined" type="button" @click="$emit('close')">cancel</button>
+          <button class="btns material-symbols-outlined" type="button" @click="props.close()">cancel</button>
         </div>
       </form>
     </div>
@@ -50,6 +50,8 @@ import type { Book } from '@/main.ts'
 const props = defineProps<{
   visible: boolean
   book: Book
+  editBook: (fields: Record<string, unknown>) => void
+  close: () => void
 }>()
 
 const form = reactive({
