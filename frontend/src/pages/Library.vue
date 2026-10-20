@@ -8,7 +8,7 @@
     />
   </div>
   <button title="Add Author from Series" class="add-btn material-symbols-outlined" @click="showAdder = true">add</button>
-  <AddSeriesAuthorModal :adding="adding" :visible="showAdder" @submit="addSeriesAuthor" @cancel="showAdder = false"/>
+  <AddSeriesAuthorModal :adding="adding" :visible="showAdder" :submit="addSeriesAuthor" :cancel="() => showAdder = false"/>
 </template>
 
 <script setup lang="ts">

@@ -12,8 +12,8 @@
         <img v-if="author.bild" :src="author.bild" :alt="author.name" class="author-image" />
         <div v-else-if="author" class="author-image">{{ getInitials(author.name) }}</div>
         <div class="download-all">
-          <LoadingButton class="ctrl-btn" :loading="downloadingAuthor=='throbber'" title="Download every book and audiobook" :text="downloadingAuthor" @click="downloadAuthor"/>
-          <LoadingButton class="ctrl-btn" :loading="completingAuthor=='throbber'" title="Try to find missing books"  :text="completingAuthor" @click="completeAuthor"/>
+          <LoadingButton class="ctrl-btn" title="Download every book and audiobook" icon="download" :action="downloadAuthor"/>
+          <LoadingButton class="ctrl-btn" title="Try to find missing books"  icon="matter" :action="completeAuthor"/>
           <button class="ctrl-btn material-symbols-outlined" title="Delete the author from DB" @click="showConfirmAuthor = true">delete</button>
           <button class="ctrl-btn material-symbols-outlined" title="Retag all Books of author" @click="previewRetagAuthor">graph_1</button>
           <button class="ctrl-btn material-symbols-outlined"
@@ -36,45 +36,45 @@
     <div class="panel">
       <keep-alive>
         <component :is="currentComponent"
-          @downloadBook="downloadBook" @completeSeries="completeSeries"
-          @downloadSeries="downloadSeries" @deleteSeries="confirmDeleteSeries" @deleteBook="confirmDeleteBook" @editBook="confirmEditBook"
-          @cleanupSeries="cleanupSeries" @uniteSeries="uniteSeries" @searchBook="searchBook" @editSeries="editSeries"
+          :downloadBook="downloadBook" :completeSeries="completeSeries"
+          :downloadSeries="downloadSeries" :deleteSeries="confirmDeleteSeries" :deleteBook="confirmDeleteBook" :editBook="confirmEditBook"
+          :cleanupSeries="cleanupSeries" :uniteSeries="uniteSeries" :searchBook="searchBook" :editSeries="editSeries"
           :showBox="showBox" :books="books" :seriesGroups="seriesGroups" :audio="audio"/>
       </keep-alive>
     </div>
     <ConfirmModal
       :visible="showConfirmAuthor"
       message="Are you sure you want to delete this author?"
-      @confirm="deleteAuthor(author?.key)"
-      @cancel="showConfirmAuthor = false"
+      :confirm="() => deleteAuthor(author?.key)"
+      :cancel="() => showConfirmAuthor = false"
     />
     <ConfirmModal
       :visible="showConfirmBook"
       :message="messageConfirmBook"
-      :blocking=true
-      @confirm="deleteBook"
-      @cancel="showConfirmBook = false"
+      :blocking="true"
+      :confirm="deleteBook"
+      :cancel="() => showConfirmBook = false"
     />
     <ConfirmModal
       :visible="showConfirmSeries"
       :message="messageConfirmSeries"
-      @confirm="deleteSeries"
-      @cancel="showConfirmSeries = false"
+      :confirm="deleteSeries"
+      :cancel="() => showConfirmSeries = false"
     />
     <EditModal v-if="editedBook"
       :visible="showEditor"
       :book="editedBook"
-      @close="showEditor = false"
-      @editBook="editBook"
+      :close="() => showEditor = false"
+      :editBook="editBook"
     />
     <ManualSearch :query="query" :visible="interactiveSearch" :book="manualSearchKey"
     :pages="manualSearchPages" :versions="manualSearchVersions"
-     @close="closeManualSearch" @select="downloadBookManual" @paginate="searchBookPaginate"/>
+     :close="closeManualSearch" :select="downloadBookManual" :paginate="searchBookPaginate"/>
     <RetagAuthorModal v-if="prv"
       :visible="showRetag"
       :author="prv"
-      @cancel="showRetag = false"
-      @retagBooks="retagBooks"
+      :cancel="() => showRetag = false"
+      :retagBooks="retagBooks"
     />
   </div>
 </template>
@@ -117,8 +117,6 @@ const manualSearchVersions = ref<BookFound[]>([])
 const query = ref("")
 const manualSearchKey = ref("")
 const manualSearchPages = ref(0)
-const downloadingAuthor = ref("download")
-const completingAuthor = ref("matter")
 const showEditor = ref(false)
 const editedBook = ref<Book>()
 
@@ -237,17 +235,22 @@ async function closeManualSearch() {
 }
 
 async function uniteSeries(data: { series_id: string; series_ids: string[] }) {
-  await api.post("/misc/union/", data)
-  fetchBooks()
+  try {
+    await api.post("/misc/union/", data)
+  } finally {
+    await fetchBooks()
+  }
 }
 
 async function downloadBook(keys: string[]) {
-  await runBatch(keys, key => dapi.post(`/book/${key}`, null, { params:{audio:audio.value} }), 'download', 3000)
-  fetchBooks()
+  try {
+    await runBatch(keys, key => dapi.post(`/book/${key}`, null, { params:{audio:audio.value} }))
+  } finally {
+    await fetchBooks()
+  }
 }
 
 async function downloadBookManual(key: string, found: BookFound) {
-  console.log(found)
   try {
     await dapi.post('/guid', {book_key : key, guid : found.guid, download : found.download, name : found.name, i_idx: found.i_idx, protocol: found.protocol}, { params: { audio : audio.value } })
     interactiveSearch.value = false
@@ -262,42 +265,18 @@ async function downloadBookManual(key: string, found: BookFound) {
 }
 
 async function downloadSeries(key: string) {
-  await runBatch([key], key => dapi.post(`/series/${key}`, null, { params:{audio:audio.value} }), 'download', 3000)
+  await runBatch([key], key => dapi.post(`/series/${key}`, null, { params:{audio:audio.value} }))
 }
 
 async function downloadAuthor() {
-  try {
-    downloadingAuthor.value = "throbber"
-    await dapi.post(`/author/${route.params.key}`, null , { params: { audio : audio.value } })
-    downloadingAuthor.value = "download"
-  } catch (error: any) {
-    notify({
-      title: 'Error',
-      text: error.response.data.detail,
-      type: 'error'
-    })
-    downloadingAuthor.value = "error"
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    downloadingAuthor.value = "download"
-  }
+  await dapi.post(`/author/${route.params.key}`, null, {
+    params: { audio: audio.value }
+  })
 }
 
 async function completeAuthor() {
-  try {
-    completingAuthor.value = "throbber"
-    await api.post(`/author/complete/${route.params.key}`)
-    completingAuthor.value = "matter"
-    fetchBooks()
-  } catch (error: any) {
-    notify({
-      title: 'Error',
-      text: error.response.data.detail,
-      type: 'error'
-    })
-    completingAuthor.value = "error"
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    completingAuthor.value = "matter"
-  }
+  await api.post(`/author/complete/${route.params.key}`)
+  await fetchBooks()
 }
 
 
@@ -347,8 +326,11 @@ async function confirmDeleteSeries(key: string) {
 
 async function deleteBook(blocking?: boolean) {
   showConfirmBook.value = false
-  await runBatch(shouldDeleteBooks.value, key => api.delete(`/book/${key}`, { params: { block: blocking } }), 'delete', 3000)
-  fetchBooks()
+  try {
+    await runBatch(shouldDeleteBooks.value, key => api.delete(`/book/${key}`, { params: { block: blocking } }))
+  } finally {
+    await fetchBooks()
+  }
 }
 async function deleteSeries() {
   showConfirmSeries.value = false
@@ -415,7 +397,7 @@ async function editSeries(key: string, payload: {}) {
   fetchBooks()
 }
 
-async function editBook(book: Book) {
+async function editBook(book: Record<string, unknown>) {
   try {
     const { key, ...data } = book
     await api.patch(`/book/${key}`, data)

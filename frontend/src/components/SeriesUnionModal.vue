@@ -19,8 +19,8 @@
       </div>
 
       <div class="modal-actions">
-        <button class="ctrl-btn material-symbols-outlined" @click="$emit('unite', selected)">save</button>
-        <button class="ctrl-btn material-symbols-outlined" @click="$emit('close')">cancel</button>
+        <button class="ctrl-btn material-symbols-outlined" @click="props.unite(selected)">save</button>
+        <button class="ctrl-btn material-symbols-outlined" @click="props.close()">cancel</button>
       </div>
     </div>
   </div>
@@ -31,15 +31,12 @@ import { ref } from 'vue'
 import type { Series } from '@/main.ts'
 
 
-defineProps<{
+const props = defineProps<{
   items: Series[]
   seriesID?: string
   visible: boolean
-}>()
-
-defineEmits<{
-  (e: 'unite', selected: string[]): void
-  (e: 'close'): void
+  unite: (selected: string[]) => void
+  close: () => void
 }>()
 
 const selected = ref<string[]>([])

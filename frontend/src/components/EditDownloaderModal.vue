@@ -58,7 +58,7 @@
           <button
             class="btns material-symbols-outlined"
             type="button"
-            @click="$emit('close')"
+            @click="props.close()"
           >
             close
           </button>
@@ -73,15 +73,12 @@ import { reactive, watch } from "vue";
 import type { Downloader } from "@/main.ts";
 
 const props = defineProps<{
-  visible: boolean;
-  downloader: Downloader;
-  idx: number;
-}>();
-
-const emit = defineEmits<{
-  (e: "save", payload: { idx: number; downloader: Downloader }): void;
-  (e: "close"): void;
-}>();
+  visible: boolean
+  downloader: Downloader
+  idx: number
+  save: (payload: { idx: number; downloader: Downloader }) => void
+  close: () => void
+}>()
 
 const form = reactive({
   name: props.downloader.name,
@@ -145,7 +142,7 @@ function handleSubmit() {
     download_categories: form.download_categories,
   };
 
-  emit("save", { idx: props.idx, downloader: output });
+  props.save({ idx: props.idx, downloader: output })
 }
 </script>
 

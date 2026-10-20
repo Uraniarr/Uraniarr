@@ -1,12 +1,12 @@
 <template>
   <BookList :showBox="false" :books="books" :seriesGroups="[]"
-      :audio="false" :suppressMap="supressMap" @deleteBook="confirmUnblockBook"></BookList>
+      :audio="false" :suppressMap="{ download: true, search: true, edit: true }" :deleteBook="confirmUnblockBook"></BookList>
 
   <ConfirmModal
     :visible="showConfirmBook"
     :message="message"
-    @confirm="unblockBook"
-    @cancel="showConfirmBook = false"
+    :confirm="unblockBook"
+    :cancel="() => showConfirmBook = false"
   />
 </template>
 
@@ -18,11 +18,6 @@ import { notify } from '@kyvg/vue3-notification';
 import { onMounted, ref } from 'vue';
 
 const books = ref<Book[]>([])
-const supressMap = ref({
-  download: true,
-  search: true,
-  edit: true
-})
 const showConfirmBook = ref(false)
 const unblockedBook = ref<string[]>([])
 const message = ref("")

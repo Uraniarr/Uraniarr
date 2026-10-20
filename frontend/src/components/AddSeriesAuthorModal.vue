@@ -16,7 +16,7 @@
       />
       <div class="actions">
         <button :disabled="adding" class="ctrl-btn material-symbols-outlined" @click="submit">save</button>
-        <button :disabled="adding" class="ctrl-btn material-symbols-outlined" @click="$emit('cancel')">cancel</button>
+        <button :disabled="adding" class="ctrl-btn material-symbols-outlined" @click="props.cancel()">cancel</button>
       </div>
     </div>
   </div>
@@ -25,20 +25,18 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   visible: boolean
   adding: boolean
-}>()
-const emit = defineEmits<{
-  (e: 'submit', data: {name: string, entry_id: string}): void;
-  (e: 'cancel'): void
+  submit: (data: { name: string; entry_id: string }) => void
+  cancel: () => void
 }>()
 
 const book = ref('')
 const name = ref('')
 
 function submit() {
-  emit('submit', {name: name.value, entry_id: book.value})
+  props.submit({ name: name.value, entry_id: book.value })
   book.value = ''
 }
 </script>

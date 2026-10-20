@@ -1,7 +1,7 @@
 <template>
   <div class="book-item">
     <div class="checkbox">
-      <input type="checkbox" class="selector" :checked="checked" @click="emit('checkboxClick', { event: $event as MouseEvent, key: book.key })"/>
+      <input type="checkbox" class="selector" :checked="checked" @click="props.checkboxClick({ event: $event as MouseEvent, key: book.key })"/>
     </div>
     <img class="book-icon" :src="book.bild" :alt="book.name" />
     <div class="book-name">
@@ -17,10 +17,10 @@
       {{ getStatus() }}
     </div>
     <div class="book-download">
-      <button v-if="!suppressMap?.edit" class="material-symbols-outlined" @click="emit('editBook', props.book)">edit</button>
-      <LoadingButton v-if="!suppressMap?.download" :loading="loading?.download === 'loading'" :text="loading?.download ?? 'download'" @click="emit('downloadBook', [props.book.key])"/>
-      <button v-if="!suppressMap?.search" class="material-symbols-outlined" @click="emit('searchBook', props.book.key)">quick_reference_all</button>
-      <button v-if="!suppressMap?.delete" class="material-symbols-outlined" @click="emit('deleteBook', [props.book.key])">delete</button>
+      <button v-if="!suppressMap?.edit && props.editBook" class="material-symbols-outlined" @click="props.editBook(book)">edit</button>
+      <LoadingButton v-if="!suppressMap?.download && props.downloadBook" icon="download" :action="() => props.downloadBook!([book.key])"/>
+      <button v-if="!suppressMap?.search && props.searchBook" class="material-symbols-outlined" @click="props.searchBook(book.key)">quick_reference_all</button>
+      <button v-if="!suppressMap?.delete" class="material-symbols-outlined" @click="props.deleteBook([book.key])">delete</button>
     </div>
   </div>
 </template>
@@ -34,16 +34,12 @@ const props = defineProps<{
   showBox: boolean
   checked?: boolean
   audio: boolean
-  loading?: { [action: string]: string }
   suppressMap?: { [action: string]: boolean }
-}>()
-
-const emit = defineEmits<{
-  (e: 'checkboxClick', payload: { event: MouseEvent; key: string }): void
-  (e: 'downloadBook', key: string[]): void
-  (e: 'searchBook', key: string): void
-  (e: 'deleteBook', keys: string[]): void
-  (e: 'editBook', book: Book): void
+  downloadBook?: (keys: string[]) => Promise<void>
+  searchBook?: (key: string) => void
+  deleteBook: (keys: string[]) => void
+  editBook?: (book: Book) => void
+  checkboxClick: (payload: { event: MouseEvent; key: string }) => void
 }>()
 
 function getStatus() {

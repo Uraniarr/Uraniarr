@@ -6,12 +6,12 @@
           <div class="title">{{ indexer.name }}</div>
           <div class="subtitle">{{ indexer.type }}</div>
         </div>
-        <button type="button" class="edit-btn material-symbols-outlined" @click="$emit('editIndexer', idx)">
+        <button type="button" class="edit-btn material-symbols-outlined" @click="props.editIndexer(idx)">
           edit
         </button>
       </div>
 
-      <div type="button" class="card add-card" @click="$emit('editIndexer', indexers.length)">
+      <div type="button" class="card add-card" @click="props.editIndexer(indexers.length)">
         <span class="plus material-symbols-outlined">add</span>
       </div>
     </div>
@@ -21,13 +21,10 @@
 <script setup lang="ts">
 import type { Indexer } from "@/main.ts";
 
-defineProps<{
-  indexers: Indexer[];
-}>();
-
-defineEmits<{
-  (e: 'editIndexer', idx: number): void
-}>();
+const props = defineProps<{
+  indexers: Indexer[]
+  editIndexer: (idx: number) => void
+}>()
 </script>
 
 <style scoped>

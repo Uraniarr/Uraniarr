@@ -43,11 +43,11 @@
           <label style="font-size: 0.9rem; user-select: none;">Select all</label>
         </div>
 
-        <button class="btns material-symbols-outlined" @click="emit('retagBooks', selectedBooks)"
+        <button class="btns material-symbols-outlined" @click="props.retagBooks(selectedBooks)">
           title="Apply selected retags">
           check
         </button>
-        <button class="btns material-symbols-outlined" @click="handleCancel" title="Cancel">
+        <button class="btns material-symbols-outlined" @click="props.cancel()" title="Cancel">
           cancel
         </button>
       </div>
@@ -63,11 +63,8 @@ import type { RetagAuthor } from '@/main.ts'
 const props = defineProps<{
   visible: boolean
   author: RetagAuthor
-}>()
-
-const emit = defineEmits<{
-  (e: 'retagBooks', keys: string[]): void
-  (e: 'cancel'): void
+  retagBooks: (keys: string[]) => void | Promise<void>
+  cancel: () => void
 }>()
 
 const selectedBooks = ref<string[]>([])
@@ -90,10 +87,6 @@ function toggleSelectAll() {
   } else {
     selectedBooks.value = []
   }
-}
-
-function handleCancel() {
-  emit('cancel')
 }
 </script>
 

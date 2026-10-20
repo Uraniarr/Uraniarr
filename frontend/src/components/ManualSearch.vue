@@ -54,28 +54,25 @@ const props = defineProps<{
   query: string
   book: string
   pages: number
+  close: () => void
+  select: (key: string, file: BookFound) => void
+  paginate: (key: string, page: number) => void | Promise<void>
 }>()
 
-var page = ref(0)
-
-const emit = defineEmits<{
-  (e: 'close'): void
-  (e: 'select', key: string, file: BookFound): void
-  (e: 'paginate', key: string, page: number): void
-}>()
+const page = ref(0)
 
 function close() {
-  emit('close')
+  props.close()
   page.value = 0
 }
 
 function choose(file: BookFound) {
-  emit('select', props.book, file)
+  props.select(props.book, file)
 }
 
 async function paginate(p: number) {
-  page.value = Math.min(Math.max(p, 0), props.pages-1)
-  emit('paginate', props.book, page.value)
+  page.value = Math.min(Math.max(p, 0), props.pages - 1)
+  await props.paginate(props.book, page.value)
 }
 </script>
 

@@ -22,8 +22,7 @@
 
         <div class="book-actions" v-if ="book">
           <button class="ctrl-btn material-symbols-outlined" @click="showEditor = true">edit</button>
-          <LoadingButton :loading="loadingEntities[book.key]?.download === 'loading'" :text="loadingEntities[book.key]?.download ?? 'download'"
-            class="ctrl-btn" @click="downloadBook([book.key])"/>
+          <LoadingButton class="ctrl-btn" icon="download" :action="downloadBook"/>
           <button class="ctrl-btn material-symbols-outlined" @click="showConfirmDelete = true">delete</button>
           <button class="ctrl-btn material-symbols-outlined" @click="searchBook(book.key)">quick_reference_all</button>
           <button class="ctrl-btn material-symbols-outlined" @click="previewRetagBook(book.key)">graph_1</button>
@@ -88,23 +87,23 @@
     <ConfirmModal
       :visible="showConfirmDelete"
       message="Are you sure you want to delete this book?"
-      @confirm="deleteBook"
-      @cancel="showConfirmDelete = false"
+      :confirm="deleteBook"
+      :cancel="() => showConfirmDelete = false"
     />
 
     <EditModal
       v-if="book"
       :visible="showEditor"
       :book="book"
-      @close="showEditor = false"
-      @editBook="editBook"
+      :close="() => showEditor = false"
+      :editBook="editBook"
     />
 
     <RetagModal v-if="prv"
       :visible="showRetag"
       :prv="prv"
-      @retagBook="retagBooks"
-      @cancel="showRetag = false"
+      :retagBook="retagBooks"
+      :cancel="() => showRetag = false"
     />
 
     <ManualSearch
@@ -113,9 +112,9 @@
       :book="manualSearchKey"
       :pages="manualSearchPages"
       :versions="manualSearchVersions"
-      @close="closeManualSearch"
-      @select="downloadBookManual"
-      @paginate="searchBookPaginate"
+      :close="closeManualSearch"
+      :select="downloadBookManual"
+      :paginate="searchBookPaginate"
     />
   </div>
 </template>
@@ -126,7 +125,7 @@ import { api, dapi } from '@/main.ts'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import EditModal from '@/components/EditModal.vue'
 import ManualSearch from '@/components/ManualSearch.vue'
-import { getInitials, formatSize, runBatch, loadingEntities } from '@/utils.ts'
+import { getInitials, formatSize } from '@/utils.ts'
 import { useRoute, useRouter } from 'vue-router'
 import type { BookFound, Book, InteractiveSearch, PreviewRetag } from '@/main.ts'
 import RetagModal from '@/components/RetagBookModal.vue'
@@ -154,10 +153,11 @@ const audio = ref<boolean>((localStorage.getItem('audio')?? "true") === "true")
 const isAnimating = ref(false);
 const prv = ref<PreviewRetag>()
 
-async function editBook(book: Book) {
+async function editBook(book: Record<string, unknown>) {
   try {
     const { key, ...data } = book
     await api.patch(`/book/${key}`, data)
+    showEditor.value = false
   } catch (error: any) {
     notify({
       title: 'Error',
@@ -210,9 +210,9 @@ async function fetchBook() {
   }
 }
 
-async function downloadBook(keys: string[]) {
-  await runBatch(keys, key => dapi.post(`/book/${key}`, null, { params:{audio:audio.value} }), 'download', 3000)
-  fetchBook()
+async function downloadBook() {
+  await dapi.post(`/book/${book.value!.key}`, null, { params: { audio: audio.value } })
+  await fetchBook()
 }
 
 
@@ -231,8 +231,17 @@ async function downloadBookManual(key: string, nzb: BookFound) {
 async function deleteBook(blocking?: boolean) {
   if (!book.value) return
   showConfirmDelete.value = false
-  await runBatch([book.value.key], key => api.delete(`/book/${key}`, { params: { block: blocking } }), 'delete', 3000)
-  router.push({ name: 'Author', params: { key: book.value?.autor_key } })
+
+  try {
+    await api.delete(`/book/${book.value.key}`, { params: { block: blocking } })
+    await router.push({ name: 'Author', params: { key: book.value.autor_key } })
+  } catch (error: any) {
+    notify({
+      title: 'Error',
+      text: error?.response?.data?.detail ?? 'Something went wrong',
+      type: 'error'
+    })
+  }
 }
 
 async function previewRetagBook(key: string) {
@@ -243,7 +252,7 @@ async function previewRetagBook(key: string) {
   } catch (error: any) {
     notify({
       title: 'Error',
-      text: error.response.data.detail,
+      text: error?.response?.data?.detail ?? 'Something went wrong',
       type: 'error'
     })
   }
@@ -257,7 +266,7 @@ async function retagBooks(keys: string[]) {
   } catch (error: any) {
     notify({
       title: 'Error',
-      text: error.response.data.detail,
+      text: error?.response?.data?.detail ?? 'Something went wrong',
       type: 'error'
     })
   }

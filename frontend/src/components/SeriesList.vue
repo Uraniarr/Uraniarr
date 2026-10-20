@@ -16,9 +16,8 @@
               {{ group.series.name }}
             </span>
             <input v-else type="text" v-model="newNameSeries"
-              @keyup.enter="emit('editSeries',  group.series.key, { name: newNameSeries }); showEditSeriesMap[group.series.key] = false"
-              @keyup.esc="newNameSeries = ''; showEditSeriesMap[group.series.key] = false"
-            />
+              @keyup.enter="props.editSeries(group.series.key, { name: newNameSeries }); showEditSeriesMap[group.series.key] = false"
+              @keyup.esc="newNameSeries = ''; showEditSeriesMap[group.series.key] = false"/>
             <button v-if="!showEditSeriesMap[group.series.key]" class="edit-btn material-symbols-outlined"
               @click="showEditSeriesMap[group.series.key] = true; newNameSeries = group.series.name;" title="Edit the series name"
             >edit</button>
@@ -27,23 +26,21 @@
         </div>
         <button v-if="!showCleanup[group.series.key]" title="Attempt to clean Book titles of remnants from series" class="ctrl-btn material-symbols-outlined" @click="showCleanup[group.series.key] = true">cleaning_services</button>
         <div v-else style="display: flex;">
-          <input class="series-clean" @keyup.enter="$emit('cleanupSeries', group.series.key, ($event.target as HTMLInputElement).value)" type="text" placeholder="alternative Series title" :key="group.series.key"/>
+          <input class="series-clean" @keyup.enter="props.cleanupSeries(group.series.key, ($event.target as HTMLInputElement).value)" type="text" placeholder="alternative Series title" :key="group.series.key"/>
           <button class="ctrl-btn material-symbols-outlined" @click="showCleanup[group.series.key] = false">arrow_right</button>
         </div>
         <button title="Join Series" class="ctrl-btn material-symbols-outlined" @click="openSelector(group.series.key)">join</button>
-        <button title="Complete series (use if missing)" class="ctrl-btn material-symbols-outlined" @click="$emit('completeSeries', group.series.key)">matter</button>
-        <LoadingButton title="Download every book of series" class="ctrl-btn" :loading="loadingEntities[group.series.key]?.download === 'loading'"
-          :text="loadingEntities[group.series.key]?.download ?? 'download'"
-          @click="$emit('downloadSeries', group.series.key)"/>
-        <button title="Delete entire series from database" class="ctrl-btn material-symbols-outlined" @click="$emit('deleteSeries', group.series.key)">delete</button>
+        <LoadingButton title="Complete series (use if missing)" class="ctrl-btn" icon="matter" :action="() => props.completeSeries(group.series.key)"/>
+        <LoadingButton title="Download every book of series" class="ctrl-btn" icon="download" :action="() => props.downloadSeries(group.series.key)"/>
+        <button title="Delete entire series from database" class="ctrl-btn material-symbols-outlined" @click="props.deleteSeries(group.series.key)">delete</button>
       </div>
       <BookList
-      @downloadBook="$emit('downloadBook', $event)"
-      @deleteBook="$emit('deleteBook', $event)"
-      @editBook="$emit('editBook', $event)"
-      @searchBook="$emit('searchBook', $event)"
-      :showBox="showBox" :books="group.books" :seriesGroups="[]"
-      :audio="audio"/>
+        :downloadBook="props.downloadBook"
+        :deleteBook="props.deleteBook"
+        :editBook="props.editBook"
+        :searchBook="props.searchBook"
+        :showBox="showBox" :books="group.books" :seriesGroups="[]"
+        :audio="audio"/>
     </div>
   </div>
 
@@ -51,8 +48,8 @@
     :items="items"
     :seriesID="seriesID"
     :visible="showSelector"
-    @close="closeSelector"
-    @unite="emitUniteSeries"
+    :close="closeSelector"
+    :unite="uniteSeries"
   />
 </template>
 
@@ -61,27 +58,23 @@ import { ref } from 'vue'
 import SeriesUnionSelector from '@/components/SeriesUnionModal.vue'
 import BookList from './BookList.vue'
 import LoadingButton from './LoadingButton.vue'
-import { loadingEntities } from '@/utils'
 import type { Book, Series } from '@/main.ts'
 
 
 const props = defineProps<{
-  books: Book[] //throw away
   showBox: boolean
   seriesGroups: Array<{ series: Series; books: Book[] }>
   audio: boolean
-}>()
-const emit = defineEmits<{
-  (e: 'downloadBook', key: string[]): void
-  (e: 'searchBook', key: string): void
-  (e: 'completeSeries', key: string): void
-  (e: 'downloadSeries', key: string): void
-  (e: 'deleteSeries', key: string): void
-  (e: 'deleteBook', keys: string[]): void
-  (e: 'uniteSeries', keys: { series_id: string; series_ids: string[] }): void
-  (e: 'editSeries', key: string, payload: {}): void
-  (e: 'editBook', book: Book): void
-  (e: 'cleanupSeries', key: string, name: string): void
+  downloadBook: (keys: string[]) => Promise<void>
+  searchBook: (key: string) => void
+  completeSeries: (key: string) => Promise<void>
+  downloadSeries: (key: string) => Promise<void>
+  deleteSeries: (key: string) => void
+  deleteBook: (keys: string[]) => void
+  uniteSeries: (keys: { series_id: string; series_ids: string[] }) => void
+  editSeries: (key: string, payload: {}) => void
+  editBook: (book: Book) => void
+  cleanupSeries: (key: string, name: string) => void
 }>()
 
 const collapseMap = ref<Record<string, boolean>>({})
@@ -94,8 +87,8 @@ const showSelector = ref(false)
 const items = ref<Series[]>([])
 const newNameSeries = ref("")
 
-function emitUniteSeries(selected: string[]) {
-  emit('uniteSeries', { series_id: seriesID.value, series_ids: selected })
+function uniteSeries(selected: string[]) {
+  props.uniteSeries({ series_id: seriesID.value, series_ids: selected })
   closeSelector()
 }
 

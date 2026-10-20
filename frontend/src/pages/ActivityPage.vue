@@ -25,8 +25,8 @@
     <ConfirmModal
       message="Are you sure you want to cancel this download?"
       :visible="showCancel"
-      @confirm="cancelDownload(downloadId)"
-      @cancel="showCancel = false"
+      :confirm="() => cancelDownload(downloadId)"
+      :cancel="() => showCancel = false"
     />
   </div>
 </template>
