@@ -11,7 +11,7 @@ from backend.exceptions import ScrapeError
 from contextlib import suppress
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
-from cloudscraper import create_scraper
+from cloudscraper import AsyncCloudScraper
 
 try:
     cache_dir = os.getenv("CONFIG_DIR", "/config")
@@ -25,7 +25,9 @@ scraper = None
 
 try: _cache = load(cache_dir.open("rb"))
 except FileNotFoundError: _cache = {}
-except Exception as e: get_logger().error(f"Failed to load cache: {e}")
+except Exception as e:
+    get_logger().error(f"Failed to load cache: {e}")
+    _cache = {}
 
 
 async def reload_scraper(state):
@@ -42,13 +44,22 @@ async def reload_scraper(state):
         state.playwright = await Stealth().use_async(async_playwright()).__aenter__()
         state.browser = await state.playwright.chromium.launch(headless=True)
     else:
-        state.browser = create_scraper()
+        state.browser = await AsyncCloudScraper().__aenter__()
     scraper = state.browser
 
 
 async def fetch(cfg: ConfigManager, url: str, params: dict, xhr: bool) -> dict:
     target = f"{url}?{urlencode(params)}" if params else url
-    if cfg.playwright:
+    if isinstance(scraper, AsyncCloudScraper):
+        get_logger().log(5, f"Using cloudscraper to GET {target}")
+        response = await scraper.get(target)
+        if response.status != 200:
+            err = await response.text()
+            if "Sicherheits-Check" in err:
+                err = "CloudFlare Error - Try to enable Playwright or try again"
+                raise ScrapeError(status_code=response.status, detail=err)
+        data = await response.read()
+    else:
         page = await scraper.new_page()
         try:
             response = await page.goto(target, wait_until="load")
@@ -65,12 +76,6 @@ async def fetch(cfg: ConfigManager, url: str, params: dict, xhr: bool) -> dict:
                 data = await page.content()
         finally:
             await page.close()
-    else:
-        get_logger().log(5, f"Using cloudscraper to GET {target}")
-        response = await asyncio.to_thread(scraper.get, target)
-        if response.status_code != 200:
-                raise ScrapeError(status_code=response.status_code, detail=response.text)
-        data = response.content
     if not data:
         raise ScrapeError(status_code=response.status_code, detail=response.text)
     return data
