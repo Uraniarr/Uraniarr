@@ -51,6 +51,6 @@ class LibService(BaseIndexer):
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
-            raise IndexerError(f"CLI failed ({proc.returncode}): {stderr.decode()}")
+            raise IndexerError(500, f"CLI failed ({proc.returncode}): {stderr.decode()}")
         return json.loads(stdout)
 
