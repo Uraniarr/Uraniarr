@@ -1,5 +1,6 @@
 import re
 import asyncio
+from typing import Iterable
 from backend.dependencies import get_language_id, get_logger
 from backend.services.request import fetch_or_cached
 from bs4 import BeautifulSoup
@@ -32,9 +33,13 @@ async def scrape_search(q: str, cfg: ConfigManager, page: int = 1):
     ids = await asyncio.gather(*coros)
     return [id_ for id_ in ids if id_ is not None]
 
-async def scrape_book_editions(book_id: str, cfg)-> tuple[list[dict], str]:
-    data = await fetch_or_cached(cfg, base+book+book_id)
-    data = json.load(BytesIO(data))[0]
+async def scrape_book_editions(book_id: str|Iterable[str], cfg: ConfigManager)-> list[tuple[list[dict], str]]:
+    book_id_str = book_id if isinstance(book_id, str) else ",".join(sorted(book_id))
+    raw_books = await fetch_or_cached(cfg, base+book+book_id_str)
+    books = json.load(BytesIO(raw_books))
+    return [parse_book_editions(data, cfg) for data in books]
+
+def parse_book_editions(data: dict, cfg: ConfigManager):
     editions = []
     series_name = None
     for k in data.get("kategoriePfade", []):
@@ -60,7 +65,7 @@ async def scrape_book_editions(book_id: str, cfg)-> tuple[list[dict], str]:
             if not series_name:
                 series_name = clean_series_title(data["serie"].get("name"))
         editions.append(ed_info)
-    get_logger().log(5, f"Found {len(editions)} editions for {book_id}")
+    get_logger().log(5, f"Found {len(editions)} editions for {data["ID"]["matnr"]}")
     return editions, series_name
 
 async def scrape_author_data(author_id: str, cfg: ConfigManager, name:str=None, metadata_only: bool = False):
@@ -83,13 +88,12 @@ async def scrape_author_data(author_id: str, cfg: ConfigManager, name:str=None, 
         return author_data
     author_data["_books"] = set()
     params = {
-        "suchbegriff": author_data["name"],
-        "artikelProSeite": "30",
+        "artikelProSeite": "100",
         "seite": 1,
         "filterSPRACHE": get_language_id(cfg),
         "sortierung": "Erscheinungsdatum_asc"
     }
-    _data = await fetch_or_cached(cfg, base+suche+"/mehr-von-autor", params)
+    _data = await fetch_or_cached(cfg, base+suche+"/mehr-von-autorid/"+author_data["key"], params)
     data = json.load(BytesIO(_data))
     coros = []
     for i in range(2, data["paginierung"]["anzahlSeiten"]+1):
@@ -104,8 +108,7 @@ async def scrape_author_data(author_id: str, cfg: ConfigManager, name:str=None, 
 
 async def scrape_all_author_data(author_id: str, cfg: ConfigManager, name: str) -> dict:
     author_data = await scrape_author_data(author_id, cfg, name=name)
-    coros = [scrape_book_editions(book_edition_id, cfg) for book_edition_id in author_data.get("_books", set())]
-    books = await asyncio.gather(*coros)
+    books = await scrape_book_editions(author_data.get("_books", set()), cfg)
     return {"author_data": author_data, "books": books}
 
 async def scrape_book_series(book_id: str, cfg: ConfigManager):
