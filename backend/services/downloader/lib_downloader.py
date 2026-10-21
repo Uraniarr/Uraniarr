@@ -73,6 +73,6 @@ class LibDownloader(BaseDownloader):
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
-            raise DownloaderError(f"CLI failed ({proc.returncode}): {stderr.decode()}")
+            raise DownloaderError(500, f"CLI failed ({proc.returncode}): {stderr.decode()}")
         if stdout: get_logger().debug(stdout.decode())
         if stderr: get_logger().error(stderr.decode())
