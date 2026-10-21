@@ -115,6 +115,15 @@ export interface Downloader {
   download_categories: string;
 }
 
+export interface KindleConfig  {
+  email_address: string;
+  password: string;
+  kindle_emails: string[];
+  smtp_server: string;
+  smtp_port: number;
+}
+
+
 const BASE = import.meta.env.VITE_API_BASE || '';
 export const api    = axios.create({ baseURL: `${BASE}/api` });
 export const tapi   = axios.create({ baseURL: `${BASE}/tapi` });

@@ -1,6 +1,6 @@
 <template>
   <BookList :showBox="false" :books="books" :seriesGroups="[]"
-      :audio="false" :suppressMap="{ download: true, search: true, edit: true }" :deleteBook="confirmUnblockBook"></BookList>
+      :audio="false" :suppressMap="{ download: true, search: true, edit: true, sendtokindle: true }" :deleteBook="confirmUnblockBook"></BookList>
 
   <ConfirmModal
     :visible="showConfirmBook"

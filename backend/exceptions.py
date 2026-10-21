@@ -23,3 +23,6 @@ class IndexerError(BaseError):
 
 class DownloaderError(BaseError):
     pass
+
+class KindleError(BaseError):
+    pass

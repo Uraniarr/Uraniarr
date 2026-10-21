@@ -25,3 +25,7 @@ class BookNzb(BaseModel):
 class ReturnInteractiveSearch(BaseModel):
     query: str
     nzbs: list[BookNzb]
+
+class KindleRequest(BaseModel):
+    book_id: str
+    kindle_idx: int = -1

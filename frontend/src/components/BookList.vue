@@ -23,6 +23,7 @@
         :searchBook="props.searchBook"
         :deleteBook="deleteBook"
         :editBook="props.editBook"
+        :sendtoKindle="sendtoKindle"
       />
     </div>
   </div>
@@ -44,6 +45,7 @@ const props = defineProps<{
   deleteBook: (keys: string[]) => void
   searchBook?: (key: string) => void
   editBook?: (book: Book) => void
+  sendtoKindle?: (keys: string[]) => Promise<void>
 }>()
 
 const selected = ref<string[]>([])
@@ -60,6 +62,13 @@ async function downloadBook(keys: string[]) {
   const books = selected.value.length ? selected.value : keys
   selected.value = []
   await props.downloadBook(books)
+}
+
+async function sendtoKindle(keys: string[]) {
+  if (!props.sendtoKindle) return
+  const books = selected.value.length ? selected.value : keys
+  selected.value = []
+  await props.sendtoKindle(books)
 }
 
 function onCheckboxClick(payload: { event: MouseEvent; key: string }, index: number) {

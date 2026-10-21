@@ -21,6 +21,7 @@
       <LoadingButton v-if="!suppressMap?.download && props.downloadBook" icon="download" :action="() => props.downloadBook!([book.key])"/>
       <button v-if="!suppressMap?.search && props.searchBook" class="material-symbols-outlined" @click="props.searchBook(book.key)">quick_reference_all</button>
       <button v-if="!suppressMap?.delete" class="material-symbols-outlined" @click="props.deleteBook([book.key])">delete</button>
+      <LoadingButton v-if="!suppressMap?.sendtokindle && props.sendtoKindle" class="material-symbols-outlined" icon="forward_to_inbox" :action="() => props.sendtoKindle!([book.key])"/>
     </div>
   </div>
 </template>
@@ -39,6 +40,7 @@ const props = defineProps<{
   searchBook?: (key: string) => void
   deleteBook: (keys: string[]) => void
   editBook?: (book: Book) => void
+  sendtoKindle?: (keys: string[]) => Promise<void>
   checkboxClick: (payload: { event: MouseEvent; key: string }) => void
 }>()
 
