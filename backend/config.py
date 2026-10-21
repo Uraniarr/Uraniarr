@@ -49,6 +49,16 @@ class ConfigManager:
                 "value": [],
                 "input_type": "downloader"
             },
+            "sendtokindle": {
+                "value": {
+                    "email_address": "",
+                    "password": "",
+                    "kindle_emails": "",
+                    "smtp_server": "smtp.gmail.com",
+                    "smtp_port": 465
+                },
+                "input_type": "sendtokindle"
+            },
             "name_ratio": {
                 "value": 80,
                 "input_type": "number"

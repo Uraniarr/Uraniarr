@@ -368,7 +368,10 @@ async def scan_and_import_files(state):
     async with AsyncSession(state.engine) as session:
         for dl_audio, downloaders in state.downloaders.items():
             for downloader in downloaders:
-                hist, cat_dir = await asyncio.gather(downloader.get_history(cfg), downloader.get_cat_dir(cfg))
+                try:
+                    hist, cat_dir = await asyncio.gather(downloader.get_history(cfg), downloader.get_cat_dir(cfg))
+                except Exception:
+                    continue
                 for key, slot in hist.items():
                     if not slot["status"] == "Completed": continue
                     activity = await session.get(Activity, key, options=[

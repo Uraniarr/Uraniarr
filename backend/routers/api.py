@@ -10,6 +10,7 @@ from backend.datamodels import *
 from backend.payloads import *
 from backend.config import ConfigManager
 from backend.services.jobs import get_job_by_interval, restart_job
+from backend.services.kindle import send_to_kindle
 from backend.services.scrape import scrape_all_author_data, scrape_book_series, clean_title
 from backend.services.request import reload_scraper
 from backend.services.author_service import save_author_to_db, complete_series_in_db, add_books_to_author, make_author_from_series, union_series
@@ -345,3 +346,15 @@ async def delete_book(book_id: str, session: AsyncSession = Depends(get_session)
 async def delete_book_files(book_id: str, session: AsyncSession = Depends(get_session)):
     await delete_audio_book(book_id, session)
     return {"deleted files": book_id}
+
+
+@router.post("/sendtokindle")
+async def send_book_to_kindle(req: KindleRequest, session: AsyncSession = Depends(get_session), cfg: ConfigManager = Depends(get_cfg_manager)):
+    book = await session.get(Book, req.book_id, options=[selectinload(Book.activities)])
+    if not book or not book.b_dl_loc:
+        raise HTTPException(404, "Book file not found")
+    try:
+        await asyncio.to_thread(send_to_kindle, book.b_dl_loc, req.kindle_idx, cfg)
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+    return

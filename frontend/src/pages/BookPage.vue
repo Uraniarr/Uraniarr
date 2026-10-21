@@ -216,9 +216,9 @@ async function downloadBook() {
 }
 
 
-async function downloadBookManual(key: string, nzb: BookFound) {
+async function downloadBookManual(key: string, found: BookFound) {
   try {
-    await dapi.post('/guid', {book_key : key, guid : nzb.guid, download : nzb.download, name : nzb.name, i_idx: nzb.i_idx}, { params: { audio : audio.value } })
+    await dapi.post('/guid', {book_key : key, guid : found.guid, download : found.download, name : found.name, i_idx: found.i_idx, protocol: found.protocol}, { params: { audio : audio.value } })
   } catch (error: any) {
     notify({
       title: 'Error',

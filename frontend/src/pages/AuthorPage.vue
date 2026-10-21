@@ -36,7 +36,7 @@
     <div class="panel">
       <keep-alive>
         <component :is="currentComponent"
-          :downloadBook="downloadBook" :completeSeries="completeSeries"
+          :downloadBook="downloadBook" :sendtoKindle="sendtoKindle" :completeSeries="completeSeries"
           :downloadSeries="downloadSeries" :deleteSeries="confirmDeleteSeries" :deleteBook="confirmDeleteBook" :editBook="confirmEditBook"
           :cleanupSeries="cleanupSeries" :uniteSeries="uniteSeries" :searchBook="searchBook" :editSeries="editSeries"
           :showBox="showBox" :books="books" :seriesGroups="seriesGroups" :audio="audio"/>
@@ -245,6 +245,14 @@ async function uniteSeries(data: { series_id: string; series_ids: string[] }) {
 async function downloadBook(keys: string[]) {
   try {
     await runBatch(keys, key => dapi.post(`/book/${key}`, null, { params:{audio:audio.value} }))
+  } finally {
+    await fetchBooks()
+  }
+}
+
+async function sendtoKindle(keys: string[]) {
+  try {
+    await runBatch(keys, key => dapi.post(`/sendtokindle`, null, { params:{book_id : key} }))
   } finally {
     await fetchBooks()
   }

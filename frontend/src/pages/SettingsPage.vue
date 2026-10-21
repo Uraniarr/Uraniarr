@@ -34,6 +34,7 @@
         :edit-indexer="editIndexer"/>
         <DownloaderList v-else-if="key === 'downloaders'" :downloaders="(settings.downloaders?.value as Downloader[]) || []"
         :edit-downloader="editDownloader"/>
+        <button v-else-if="key === 'sendtokindle'" type="button" class="btn material-symbols-outlined" style="margin-left: 0;" @click="showModalKindle = true">build</button>
         <input
           v-else
           :id="key + '-input'"
@@ -50,19 +51,22 @@
   :close="() => showModalIndexer=false" :save="changeIndexer"/>
   <EditDownloaderModal v-if="downloader" :downloader="downloader" :idx="downloaderIdx" :visible="showModalDownloader"
   :close="() => showModalDownloader=false" :save="changeDownloader"/>
+  <EditSendToKindleModal v-if="settings.sendtokindle" :cfg="(settings.sendtokindle.value as KindleConfig)" :visible="showModalKindle"
+  :close="() => showModalKindle=false" :save="changeKindle"/>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { api, type Downloader, type Indexer } from '@/main.ts'
+import { api, type Downloader, type Indexer, type KindleConfig } from '@/main.ts'
 import { notify } from '@kyvg/vue3-notification'
 import IndexerList from '@/components/IndexerList.vue'
 import EditIndexerModal from '@/components/EditIndexerModal.vue'
+import EditSendToKindleModal from '@/components/EditSendToKindleModal.vue'
 import DownloaderList from '@/components/DownloaderList.vue'
 import EditDownloaderModal from '@/components/EditDownloaderModal.vue'
 
 interface ConfigEntry {
-  value: string | number | boolean | Indexer[] | Downloader[]
+  value: string | number | boolean | Indexer[] | Downloader[] | KindleConfig
   input_type: string
   options?: string[]
 }
@@ -91,6 +95,7 @@ const settingNames: Record<string, string> = {
   import_unfinished: 'DANGEROUS: Import Unfinished Files',
   name_ratio: 'Fuzzy Name Ratio',
   ingest_path: 'Ingest Folder',
+  sendtokindle: 'Send to Kindle Setup',
 }
 
 const tooltips: Record<string, string> = {
@@ -116,6 +121,7 @@ const tooltips: Record<string, string> = {
 
 const showModalIndexer = ref(false)
 const showModalDownloader = ref(false)
+const showModalKindle = ref(false)
 const indexer = ref<Indexer>()
 const indexerIdx = ref(-1)
 const downloader = ref<Downloader>()
@@ -174,6 +180,13 @@ async function changeDownloader({idx, downloader}: { idx: number; downloader: Do
   await saveSettings()
 }
 
+async function changeKindle(cfg: KindleConfig) {
+  if (!settings.value.sendtokindle) return
+  settings.value.sendtokindle.value = cfg
+  showModalKindle.value = false
+  await saveSettings()
+}
+
 async function getSettings() {
   try {
     const { data } = await api.get<Record<string, ConfigEntry>>('/settings')
@@ -194,7 +207,7 @@ function getChangedFields(): Record<string, unknown> {
   for (const [key, cfg] of Object.entries(settings.value)) {
     const oldVal = originalSettings.value[key]?.value
     const newVal = cfg.value
-    if (key === "indexers" || key === "downloaders") {
+    if (key === "indexers" || key === "downloaders" || key === "sendtokindle") {
       if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
         patch[key] = newVal
       }

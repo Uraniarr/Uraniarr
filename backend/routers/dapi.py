@@ -64,12 +64,15 @@ async def search_manual(request: Request, book_id: str, page:int = 0, audio: boo
     book = await session.get(Book, book_id, options=[selectinload(Book.series), selectinload(Book.author)])
     data = None
     nzbs = []
-    for indexer in indexers:
-        data = await indexer.query_manual(book, page, cfg=cfg, audio=audio)
-        if not data:
+    coros = [indexer.query_manual(book, page, cfg=cfg, audio=audio) for indexer in indexers]
+    results = await asyncio.gather(*coros, return_exceptions=True)
+    query_info = {}
+    for data in results:
+        if isinstance(data, Exception) or not data:
             continue
         nzbs.extend(data["nzbs"])
-    return { **data, "nzbs": nzbs }
+        query_info = data
+    return { **query_info, "nzbs": nzbs }
 
 @router.post("/author/{author_id}")
 async def download_author(request: Request, author_id: str, audio: bool = True, session: AsyncSession = Depends(get_session)):
@@ -189,11 +192,12 @@ async def delete_activity(request: Request, activity_id: str, session: AsyncSess
     return activity_id
 
 async def schedule_download(guid: str, release_title: str, nzb : bytes, downloaders: list[BaseDownloader], cfg: ConfigManager, book: Book, audio: bool):
+    if not downloaders:
+        raise HTTPException(400, "Invalid downloader configuration. No Downloader for this type and media found.")
     for downloader in downloaders:
         data = await downloader.download(nzb, nzbname=release_title, cfg=cfg)
         if data: break
-    if not data:
-
+    else:
         return {"book": book, "error": "Download failed", "code": 500}
     try:
         activity = Activity(nzo_id=data[0], book=book, release_title=release_title, audio=audio, guid=guid)
