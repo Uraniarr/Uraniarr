@@ -24,6 +24,7 @@
         :deleteBook="deleteBook"
         :editBook="props.editBook"
         :sendtoKindle="sendtoKindle"
+        :dndDownload="props.dndDownload"
       />
     </div>
   </div>
@@ -34,6 +35,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import BookItem from '@/components/BookItem.vue'
 import type { Book } from '@/main.ts'
+import type { DownloadType } from '@/utils';
 
 const props = defineProps<{
   books: Book[]
@@ -46,6 +48,7 @@ const props = defineProps<{
   searchBook?: (key: string) => void
   editBook?: (book: Book) => void
   sendtoKindle?: (keys: string[]) => Promise<void>
+  dndDownload?: (key: string, file: File, type: DownloadType) => Promise<void>
 }>()
 
 const selected = ref<string[]>([])
