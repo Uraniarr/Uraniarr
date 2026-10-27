@@ -1,6 +1,10 @@
 
 from contextlib import suppress
-from fastapi import APIRouter, Depends, HTTPException, Request
+from pathlib import Path
+import tempfile
+from typing import Literal
+from uuid import uuid4
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlmodel import select
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -8,6 +12,7 @@ import asyncio
 from backend.config import ConfigManager
 
 from backend.dependencies import get_session
+from backend.services.filehelper import apply_import_result, import_book_files, prepare_destination, process_direct_upload
 from backend.services.indexer import BaseIndexer
 from backend.services.downloader import BaseDownloader
 from backend.datamodels import Book, Author, Series, Activity, ActivityStatus
@@ -44,7 +49,7 @@ async def download_book(request: Request, book_id: str,  audio: bool = True, ses
 async def download_guid(request: Request, data: ManualGUIDDownload, audio: bool = True, session: AsyncSession = Depends(get_session)):
     cfg = request.app.state.cfg_manager
     indexers: list[BaseIndexer] = request.app.state.indexers[audio]
-    book = await session.get(Book, data.book_key)
+    book = await session.get(Book, data.book_key, options=[selectinload(Book.series), selectinload(Book.author)])
     nzb = await indexers[data.i_idx].grab(data.download, cfg=cfg)
     downloaders: list[BaseDownloader] = [downloader for downloader in request.app.state.downloaders[audio] if data.protocol in downloader.supported_protocols]
     activity=await schedule_download(data.guid, data.name, nzb, book=book, downloaders=downloaders, cfg=cfg, audio=audio)
@@ -54,6 +59,30 @@ async def download_guid(request: Request, data: ManualGUIDDownload, audio: bool 
     else:
         raise HTTPException(status_code=activity["code"], detail=activity["error"])
     return data.guid
+
+@router.post("/upload/{book_id}")
+async def assign_upload(request: Request, book_id: str, protocol: Literal["direct", "usenet", "torrent"], file: UploadFile = File(...), audio: bool = True, session: AsyncSession = Depends(get_session)):
+    cfg = request.app.state.cfg_manager
+    book = await session.get(Book, book_id, options=[selectinload(Book.series).selectinload(Series.books), selectinload(Book.author), selectinload(Book.activities)])
+    guid = "dnd_" + uuid4().hex[:7]
+    if protocol == "direct":
+        folder_path = await process_direct_upload(file)
+        result = await asyncio.to_thread(import_book_files, prepare_destination(book, audio, cfg), audio, folder_path, Path(tempfile.gettempdir()), cfg)
+        activity = Activity(book=book, release_title=file.filename, audio=audio, guid=guid)
+        session.add(activity)
+        success = await apply_import_result(session, activity, result) #TODO
+        await session.commit()
+        return guid
+    downloaders: list[BaseDownloader] = [downloader for downloader in request.app.state.downloaders[audio] if protocol in downloader.supported_protocols]
+    content: bytes = await file.read()
+    activity=await schedule_download(guid, file.filename, content, book=book, downloaders=downloaders, cfg=cfg, audio=audio)
+    if isinstance(activity, Activity):
+        session.add(activity)
+        await session.commit()
+    else:
+        raise HTTPException(status_code=activity["code"], detail=activity["error"])
+    return guid
+
 
 @router.get("/manual/{book_id}")
 async def search_manual(request: Request, book_id: str, page:int = 0, audio: bool = True, session: AsyncSession = Depends(get_session)):

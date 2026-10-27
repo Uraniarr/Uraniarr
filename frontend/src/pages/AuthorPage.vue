@@ -38,7 +38,7 @@
         <component :is="currentComponent"
           :downloadBook="downloadBook" :sendtoKindle="sendtoKindle" :completeSeries="completeSeries"
           :downloadSeries="downloadSeries" :deleteSeries="confirmDeleteSeries" :deleteBook="confirmDeleteBook" :editBook="confirmEditBook"
-          :cleanupSeries="cleanupSeries" :uniteSeries="uniteSeries" :searchBook="searchBook" :editSeries="editSeries"
+          :cleanupSeries="cleanupSeries" :dndDownload="dndDownload" :uniteSeries="uniteSeries" :searchBook="searchBook" :editSeries="editSeries"
           :showBox="showBox" :books="books" :seriesGroups="seriesGroups" :audio="audio"/>
       </keep-alive>
     </div>
@@ -83,7 +83,7 @@
 import { useRoute, useRouter } from 'vue-router'
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
 import { api, dapi as dapi } from '@/main.ts'
-import { getInitials, runBatch } from '@/utils.ts'
+import { getInitials, runBatch, type DownloadType } from '@/utils.ts'
 import { notify } from '@kyvg/vue3-notification'
 import LoadingButton from '@/components/LoadingButton.vue'
 import BookList from '@/components/BookList.vue'
@@ -245,6 +245,17 @@ async function uniteSeries(data: { series_id: string; series_ids: string[] }) {
 async function downloadBook(keys: string[]) {
   try {
     await runBatch(keys, key => dapi.post(`/book/${key}`, null, { params:{audio:audio.value} }))
+  } finally {
+    await fetchBooks()
+  }
+}
+
+async function dndDownload(key: string, file: File, type: DownloadType) {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    console.log(key, file, type)
+    await runBatch([key], key => dapi.post(`/upload/${key}`, formData, { params:{protocol: type, audio:audio.value} }))
   } finally {
     await fetchBooks()
   }

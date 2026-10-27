@@ -10,3 +10,4 @@ ai-cloudscraper==3.8.4
 aiosqlite==0.21.0
 httpx==0.28.1
 langcodes[data]==3.5.1
+python-multipart==0.0.32

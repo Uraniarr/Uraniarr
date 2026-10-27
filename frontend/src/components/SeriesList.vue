@@ -39,6 +39,7 @@
         :deleteBook="props.deleteBook"
         :editBook="props.editBook"
         :searchBook="props.searchBook"
+        :dndDownload="props.dndDownload"
         :showBox="showBox" :books="group.books" :seriesGroups="[]"
         :audio="audio"/>
     </div>
@@ -59,6 +60,7 @@ import SeriesUnionSelector from '@/components/SeriesUnionModal.vue'
 import BookList from './BookList.vue'
 import LoadingButton from './LoadingButton.vue'
 import type { Book, Series } from '@/main.ts'
+import type { DownloadType } from '@/utils.ts'
 
 
 const props = defineProps<{
@@ -66,6 +68,7 @@ const props = defineProps<{
   seriesGroups: Array<{ series: Series; books: Book[] }>
   audio: boolean
   downloadBook: (keys: string[]) => Promise<void>
+  dndDownload?: (key: string, file: File, type: DownloadType) => Promise<void>
   searchBook: (key: string) => void
   completeSeries: (key: string) => Promise<void>
   downloadSeries: (key: string) => Promise<void>

@@ -3,6 +3,10 @@ import logging
 from pathlib import Path
 import re
 import shutil
+import tarfile
+import tempfile
+import zipfile
+from fastapi import UploadFile
 from sqlmodel import func, select
 from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -193,17 +197,16 @@ def import_book_files(destinations: dict, audio: bool, src: Path, cat_dir: Path,
     if not extra_dst_dir and extra_files:
         get_logger().info(f"Found a double release but {'Book' if audio else 'Audio'} path is not configured. Ignoring.")
         extra_files = []
-    if not audio:
+    if not audio and wanted_files:
         if len(wanted_files) > 1:
             get_logger().warning(f"Found multiple book files, only 1 is supported. Taking the first of {files[False]}")
             wanted_files = wanted_files[:1]
         wanted_dst_dir = wanted_dst_dir.with_suffix(wanted_files[0].suffix)
-    else:
-        if extra_files:
-            if len(extra_files) > 1:
-                get_logger().warning(f"Found multiple book files, only 1 is supported. Taking the first of {files[False]}")
-                extra_files = extra_files[:1]
-            extra_dst_dir = extra_dst_dir.with_suffix(extra_files[0].suffix)
+    elif audio and extra_files:
+        if len(extra_files) > 1:
+            get_logger().warning(f"Found multiple book files, only 1 is supported. Taking the first of {files[False]}")
+            extra_files = extra_files[:1]
+        extra_dst_dir = extra_dst_dir.with_suffix(extra_files[0].suffix)
     if len(wanted_files) == 0:
         get_logger().error(f"Error importing {src}. No {'audio' if audio else 'book'} files found")
         wanted_valid = False
@@ -392,30 +395,34 @@ async def scan_and_import_files(state):
 
         import_data = await asyncio.gather(*moves, return_exceptions=False)
         for activity, data in zip(activities, import_data):
-            if isinstance(data, Exception) or not data[activity.audio]["valid"]:
-                get_logger().debug(f"Import Failed! {data} {activity.model_dump()}")
-                activity.status = ActivityStatus.failed
-                if isinstance(data, Exception): continue
-            wanted, extra = data[activity.audio], data[not activity.audio]
-            wanted_loc, extra_loc = dl_loc[activity.audio], dl_loc[not activity.audio]
-            if wanted["valid"]:
-                setattr(activity.book, dl_loc[activity.audio], str(wanted["dst_dir"]))
-                if getattr(activity.book.author, wanted_loc) is None:
-                    setattr(activity.book.author, wanted_loc, wanted["author_dir"])
-                if getattr(activity.book.series, wanted_loc) is None:
-                    setattr(activity.book.series, wanted_loc, wanted["series_dir"])
-                mark_overwritten_activity(activity.book, activity.audio)
-                activity.status = ActivityStatus.imported
-            if extra["valid"]:
-                setattr(activity.book, extra_loc, str(extra["dst_dir"]))
-                if getattr(activity.book.author, extra_loc) is None:
-                    setattr(activity.book.author, extra_loc, extra["author_dir"])
-                if getattr(activity.book.series, extra_loc) is None:
-                    setattr(activity.book.series, extra_loc, extra["series_dir"])
-                clone = activity.model_dump() | {"nzo_id": f"{activity.nzo_id}DR", "status": ActivityStatus.imported, "audio": not activity.audio}
-                session.add(Activity(**clone))
+            success = apply_import_result(session, activity, data)
         await asyncio.gather(*[downloader.remove_from_history(cfg, nzo_id) for nzo_id, downloader in nzo_to_dl.items()], return_exceptions=True)
         await session.commit()
+
+async def apply_import_result(session: AsyncSession, activity: Activity, data: dict):
+    dl_loc = { True: "a_dl_loc", False: "b_dl_loc" }
+    if isinstance(data, Exception) or not data[activity.audio]["valid"]:
+        get_logger().debug(f"Import Failed! {data} {activity.model_dump()}")
+        activity.status = ActivityStatus.failed
+        if isinstance(data, Exception): return
+    wanted, extra = data[activity.audio], data[not activity.audio]
+    wanted_loc, extra_loc = dl_loc[activity.audio], dl_loc[not activity.audio]
+    if wanted["valid"]:
+        setattr(activity.book, dl_loc[activity.audio], str(wanted["dst_dir"]))
+        if getattr(activity.book.author, wanted_loc) is None:
+            setattr(activity.book.author, wanted_loc, wanted["author_dir"])
+        if getattr(activity.book.series, wanted_loc) is None:
+            setattr(activity.book.series, wanted_loc, wanted["series_dir"])
+        mark_overwritten_activity(activity.book, activity.audio)
+        activity.status = ActivityStatus.imported
+    if extra["valid"]:
+        setattr(activity.book, extra_loc, str(extra["dst_dir"]))
+        if getattr(activity.book.author, extra_loc) is None:
+            setattr(activity.book.author, extra_loc, extra["author_dir"])
+        if getattr(activity.book.series, extra_loc) is None:
+            setattr(activity.book.series, extra_loc, extra["series_dir"])
+        clone = activity.model_dump() | {"nzo_id": f"{activity.nzo_id}DR", "status": ActivityStatus.imported, "audio": not activity.audio}
+        session.add(Activity(**clone))
 
 async def rescan_files(state):
     async with AsyncSession(state.engine) as session:
@@ -494,3 +501,36 @@ async def reimport_files(state):
             books[idx].b_dl_loc = str(p)
         # await asyncio.gather(*moved) #TODO log
         await session.commit()
+
+
+
+
+async def process_direct_upload(file: UploadFile) -> Path:
+    tmp_dir = Path(tempfile.mkdtemp(prefix="book_upload_"))
+    filename = Path(file.filename or "upload").name
+    file_path = tmp_dir / filename
+    suffixes = file_path.suffixes
+    extension = suffixes[-1].lower() if suffixes else ""
+
+    try:
+        with file_path.open("wb") as output:
+            while chunk := await file.read(1024 * 1024):
+                output.write(chunk)
+
+        extract_dir = tmp_dir / "extracted"
+
+        if extension == ".zip" and zipfile.is_zipfile(file_path):
+            extract_dir.mkdir()
+            await asyncio.to_thread(shutil.unpack_archive, str(file_path), str(extract_dir), "zip")
+        elif extension in {".tar", ".gz", ".tgz", ".bz2", ".xz"} and tarfile.is_tarfile(file_path):
+            extract_dir.mkdir()
+            await asyncio.to_thread(shutil.unpack_archive, str(file_path), str(extract_dir), "tar")
+        else:
+            return tmp_dir
+
+        file_path.unlink()
+        return extract_dir
+
+    except Exception:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
