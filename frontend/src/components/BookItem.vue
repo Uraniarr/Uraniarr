@@ -1,5 +1,6 @@
 <template>
-  <div class="book-item">
+  <div class="book-item" :class="{ 'drag-over': isDragging }" @dragenter.prevent="handleDragEnter"
+    @dragover.prevent @dragleave.prevent="handleDragLeave" @drop.prevent="handleDrop">
     <div class="checkbox">
       <input type="checkbox" class="selector" :checked="checked" @click="props.checkboxClick({ event: $event as MouseEvent, key: book.key })"/>
     </div>
@@ -27,8 +28,10 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import LoadingButton from './LoadingButton.vue';
 import type { Book } from '@/main.ts'
+import { getDownloadType, type DownloadType } from '@/utils.ts';
 
 const props = defineProps<{
   book: Book
@@ -41,8 +44,11 @@ const props = defineProps<{
   deleteBook: (keys: string[]) => void
   editBook?: (book: Book) => void
   sendtoKindle?: (keys: string[]) => Promise<void>
+  dndDownload?: (key: string, file: File, type: DownloadType) => Promise<void>
   checkboxClick: (payload: { event: MouseEvent; key: string }) => void
 }>()
+
+const isDragging = ref(false);
 
 function getStatus() {
   const acts = props.book.activities.filter((act) => act.audio === props.audio)
@@ -70,6 +76,42 @@ function getTooltip() {
   }
   return 'Not downloaded'
 }
+
+let dragCounter = 0;
+function handleDragEnter(event: DragEvent) {
+  event.preventDefault();
+  dragCounter++;
+  if (!props.suppressMap?.dnd){
+    isDragging.value = true;
+  }
+}
+
+function handleDragLeave(event: DragEvent) {
+  event.preventDefault();
+  dragCounter--;
+
+  if (dragCounter <= 0) {
+    dragCounter = 0;
+    isDragging.value = false;
+  }
+}
+
+function handleDrop(event: DragEvent) {
+  event.preventDefault();
+
+  dragCounter = 0;
+  isDragging.value = false;
+
+  const files = event.dataTransfer?.files;
+  if (!files || files.length !== 1) return;
+
+  const file = files[0];
+  const type = getDownloadType(file);
+
+  if (!type) return;
+
+  props.dndDownload?.(props.book.key, file, type);
+}
 </script>
 
 <style scoped>
@@ -85,6 +127,11 @@ function getTooltip() {
   background-color: var(--backgroundWhite);
   border-radius: 8px;
   max-height: 50px;
+}
+
+.book-item.drag-over {
+  outline: 2px dashed var(--mainColor);
+  outline-offset: -2px;
 }
 
 .book-name{
