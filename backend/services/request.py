@@ -55,7 +55,7 @@ async def fetch(cfg: ConfigManager, url: str, params: dict, xhr: bool) -> dict:
         response = await scraper.get(target)
         if response.status != 200:
             err = await response.text()
-            if "Sicherheits-Check" in err:
+            if "Sicherheits-Check" in err or "verweigert" in err:
                 err = "CloudFlare Error - Try to enable Playwright or try again"
                 raise ScrapeError(status_code=response.status, detail=err)
         data = await response.read()
@@ -67,8 +67,8 @@ async def fetch(cfg: ConfigManager, url: str, params: dict, xhr: bool) -> dict:
                 raise ScrapeError(status_code=500, detail="No response received")
             if response.status != 200:
                 err = await response.text()
-                if "Sicherheits-Check" in err:
-                    err = "CloudFlare Error - Try to enable Playwright or try again"
+                if "Sicherheits-Check" in err or "verweigert" in err:
+                    err = "CloudFlare Error - Try try again"
                 raise ScrapeError(status_code=response.status, detail=err)
             if xhr:
                 data = await response.body()  # Raw JSON bytes
