@@ -7,7 +7,8 @@ from backend.dependencies import get_logger
 from backend.exceptions import KindleError
 
 def send_to_kindle(file: str | Path, kindle_idx: int, cfg: ConfigManager):
-    recipients = [email.strip() for email in cfg.kindle_emails.split(",") if email.strip()]
+    kindle_cfg = cfg.sendtokindle
+    recipients = [email.strip() for email in kindle_cfg["kindle_emails"].split(",") if email.strip()]
     if not recipients:
         raise ValueError("No Kindle email addresses configured")
 
@@ -19,8 +20,16 @@ def send_to_kindle(file: str | Path, kindle_idx: int, cfg: ConfigManager):
 
     file = Path(file)
 
+    email = kindle_cfg.get("email_address")
+    smtp_port = kindle_cfg.get("smtp_port")
+    smtp_server = kindle_cfg.get("smtp_server")
+    pw = kindle_cfg.get("password")
+
+    if not (email and smtp_port and smtp_server and pw):
+        raise ValueError("sendtokindle config mal-formed")
+
     msg = EmailMessage()
-    msg["From"] = cfg.email_address
+    msg["From"] = email
     msg["To"] = ", ".join(recipients)
     msg["Subject"] = "Send to Kindle"
     msg.set_content("")
@@ -32,6 +41,6 @@ def send_to_kindle(file: str | Path, kindle_idx: int, cfg: ConfigManager):
         filename=file.name
     )
 
-    with smtplib.SMTP_SSL(cfg.smtp_server, cfg.smtp_port) as smtp:
-        smtp.login(cfg.email_address, cfg.password)
+    with smtplib.SMTP_SSL(smtp_server, smtp_port) as smtp:
+        smtp.login(email, pw)
         smtp.send_message(msg, to_addrs=recipients)
