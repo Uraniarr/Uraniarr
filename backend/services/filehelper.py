@@ -395,7 +395,7 @@ async def scan_and_import_files(state):
 
         import_data = await asyncio.gather(*moves, return_exceptions=False)
         for activity, data in zip(activities, import_data):
-            success = apply_import_result(session, activity, data)
+            success = await apply_import_result(session, activity, data)
         await asyncio.gather(*[downloader.remove_from_history(cfg, nzo_id) for nzo_id, downloader in nzo_to_dl.items()], return_exceptions=True)
         await session.commit()
 
