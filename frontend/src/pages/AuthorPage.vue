@@ -263,7 +263,7 @@ async function dndDownload(key: string, file: File, type: DownloadType) {
 
 async function sendtoKindle(keys: string[]) {
   try {
-    await runBatch(keys, key => dapi.post(`/sendtokindle`, null, { params:{book_id : key} }))
+    await runBatch(keys, key => api.post(`/sendtokindle`, { book_id : key }))
   } finally {
     await fetchBooks()
   }
