@@ -31,9 +31,9 @@
           </option>
         </select>
         <IndexerList v-else-if="key === 'indexers'" :indexers="(settings.indexers?.value as Indexer[]) || []"
-        :edit-indexer="editIndexer" :reorderList="reorderList"/>
+        :edit-indexer="editIndexer" :applyDeepChange="applyDeepChange"/>
         <DownloaderList v-else-if="key === 'downloaders'" :downloaders="(settings.downloaders?.value as Downloader[]) || []"
-        :edit-downloader="editDownloader" :reorderList="reorderList"/>
+        :edit-downloader="editDownloader" :applyDeepChange="applyDeepChange"/>
         <button v-else-if="key === 'sendtokindle'" type="button" class="btn material-symbols-outlined" style="margin-left: 0;" @click="showModalKindle = true">build</button>
         <input
           v-else
@@ -48,16 +48,16 @@
     </form>
   </div>
   <EditIndexerModal v-if="indexer" :indexer="indexer" :idx="indexerIdx" :visible="showModalIndexer"
-  :close="() => showModalIndexer=false" :save="changeIndexer"/>
+  :close="() => showModalIndexer=false" :save="changeIndexer" :test="testIndexer"/>
   <EditDownloaderModal v-if="downloader" :downloader="downloader" :idx="downloaderIdx" :visible="showModalDownloader"
-  :close="() => showModalDownloader=false" :save="changeDownloader"/>
+  :close="() => showModalDownloader=false" :save="changeDownloader" :test="testDownloader"/>
   <EditSendToKindleModal v-if="settings.sendtokindle" :cfg="(settings.sendtokindle.value as KindleConfig)" :visible="showModalKindle"
   :close="() => showModalKindle=false" :save="changeKindle"/>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { api, type Downloader, type Indexer, type KindleConfig } from '@/main.ts'
+import { api, dapi, type Downloader, type Indexer, type KindleConfig } from '@/main.ts'
 import { notify } from '@kyvg/vue3-notification'
 import IndexerList from '@/components/IndexerList.vue'
 import EditIndexerModal from '@/components/EditIndexerModal.vue'
@@ -135,13 +135,16 @@ onMounted(async () => {
 async function editIndexer(idx: number) {
   indexer.value = (settings.value.indexers?.value as Indexer[])[idx] || {
     name: '',
-    type: 'prowlarr',
     url: '',
     apikey: '',
+    type: 'prowlarr',
     book: false,
     audio: false,
-    audio_categories: [],
-    book_categories: []
+    audio_categories: '',
+    book_categories: '',
+    protocol: null,
+    usenet: true,
+    torrent: false,
   }
   indexerIdx.value = idx
   showModalIndexer.value = true
@@ -150,35 +153,51 @@ async function editIndexer(idx: number) {
 async function editDownloader(idx: number) {
   downloader.value = (settings.value.downloaders?.value as Downloader[])[idx] || {
     name: '',
-    type: 'sab',
     url: '',
     apikey: '',
+    type: 'sab',
     audio: false,
-    download_categories: [],
+    book: false,
+    download_categories: '',
   }
   downloaderIdx.value = idx
   showModalDownloader.value = true
 }
 
-async function changeIndexer({idx, indexer}: { idx: number; indexer: Indexer }) {
+async function changeIndexer({idx, indexer}: { idx: number; indexer: Indexer|null }) {
   if (!settings.value.indexers) return
   const editedIndexers = (settings.value.indexers.value as Indexer[]) || []
   if (idx < 0) idx = editedIndexers.length
-  editedIndexers[idx] = indexer
+  if (indexer)
+    editedIndexers[idx] = indexer
+  else
+    editedIndexers.splice(idx, 1)
   showModalIndexer.value = false
   settings.value.indexers.value = editedIndexers
   await saveSettings()
 }
 
-async function changeDownloader({idx, downloader}: { idx: number; downloader: Downloader }) {
+async function changeDownloader({idx, downloader}: { idx: number; downloader: Downloader|null }) {
   if (!settings.value.downloaders) return
   const editedDownloaders = (settings.value.downloaders.value as Downloader[]) || []
   if (idx < 0) idx = editedDownloaders.length
-  editedDownloaders[idx] = downloader
+  if (downloader)
+    editedDownloaders[idx] = downloader
+  else
+    editedDownloaders.splice(idx, 1)
   showModalDownloader.value = false
   settings.value.downloaders.value = editedDownloaders
   await saveSettings()
 }
+
+async function testDownloader(downloader: Downloader) {
+  await dapi.post("/test/downloader", downloader)
+}
+
+async function testIndexer(indexer: Indexer) {
+  await dapi.post("/test/indexer", indexer)
+}
+
 
 async function changeKindle(cfg: KindleConfig) {
   if (!settings.value.sendtokindle) return
@@ -248,7 +267,7 @@ async function saveSettings() {
   }
 }
 
-async function reorderList(key: string, lst: Downloader[]|Indexer[]) {
+async function applyDeepChange(key: string, lst: Downloader[]|Indexer[]) {
   try{
     await api.patch("/settings", { [key]: lst });
     settings.value[key].value = lst;

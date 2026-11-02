@@ -1,5 +1,5 @@
 import asyncio
-from backend.exceptions import NzbsError
+from backend.exceptions import DownloaderError, NzbsError
 import httpx
 from backend.services.downloader.base_downloader import BaseDownloader
 from pathlib import Path
@@ -135,16 +135,13 @@ class SABDownloader(BaseDownloader):
         return str(base_folder / cat_folder)
 
     async def test(self, cfg):
-        try:
-            p = {
-                "apikey": self.apikey,
-                "mode": "status",
-            }
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(self.url, params=p)
-        except Exception as e:
-            return False
-        if resp.status_code != 200: False
-        return True
+        p = {
+            "apikey": self.apikey,
+            "mode": "status",
+        }
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(self.url, params=p)
+        if not resp.status_code == 200:
+            raise DownloaderError(detail="Could not connect to downloader")
 
 

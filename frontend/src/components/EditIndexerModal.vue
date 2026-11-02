@@ -66,8 +66,10 @@
         </label>
 
         <div class="actions">
-          <button class="btns material-symbols-outlined" type="submit">save</button>
           <button class="btns material-symbols-outlined" type="button" @click="props.close()">close</button>
+          <button class="btns material-symbols-outlined" type="button" @click="props.save({ idx: props.idx, indexer: null})">delete</button>
+          <LoadingButton icon="labs" :action="() => props.test(form)"/>
+          <button class="btns material-symbols-outlined" type="submit">save</button>
         </div>
       </form>
     </div>
@@ -76,13 +78,15 @@
 
 <script setup lang="ts">
 import { reactive, watch } from "vue";
+import LoadingButton from './LoadingButton.vue';
 import type { Indexer } from "@/main.ts";
 
 const props = defineProps<{
   visible: boolean
   indexer: Indexer
   idx: number
-  save: (payload: { idx: number; indexer: Indexer }) => void
+  save: (payload: { idx: number; indexer: Indexer|null }) => void
+  test: (indexer: Indexer) => Promise<void>
   close: () => void
 }>()
 
@@ -129,18 +133,6 @@ watch(
   }
 );
 
-function getProtocol(): "direct" | "usenet" | null {
-  switch (form.type) {
-    case "lib":
-      return "direct";
-    case "newznab":
-      return "usenet";
-    case "prowlarr":
-    default:
-      return null;
-  }
-}
-
 function isValid() {
   return (
     form.name.trim() &&
@@ -167,7 +159,6 @@ function handleSubmit() {
     audio: form.type === "lib" ? false : form.audio,
     audio_categories: form.audio_categories,
     book_categories: form.book_categories,
-    protocol: getProtocol(),
     usenet: form.type === "prowlarr" ? form.usenet : false,
     torrent: form.type === "prowlarr" ? form.torrent : false,
   };

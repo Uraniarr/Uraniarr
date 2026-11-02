@@ -49,19 +49,10 @@
         </label>
 
         <div class="actions">
-          <button
-            class="btns material-symbols-outlined"
-            type="submit"
-          >
-            save
-          </button>
-          <button
-            class="btns material-symbols-outlined"
-            type="button"
-            @click="props.close()"
-          >
-            close
-          </button>
+          <button class="btns material-symbols-outlined" type="button" @click="props.close()">close</button>
+          <button class="btns material-symbols-outlined" type="button" @click="props.save({ idx: props.idx, downloader: null})">delete</button>
+          <LoadingButton icon="labs" :action="() => props.test(form)"/>
+            <button class="btns material-symbols-outlined" type="submit">save</button>
         </div>
       </form>
     </div>
@@ -70,13 +61,15 @@
 
 <script setup lang="ts">
 import { reactive, watch } from "vue";
+import LoadingButton from './LoadingButton.vue';
 import type { Downloader } from "@/main.ts";
 
 const props = defineProps<{
   visible: boolean
   downloader: Downloader
   idx: number
-  save: (payload: { idx: number; downloader: Downloader }) => void
+  save: (payload: { idx: number; downloader: Downloader|null }) => void
+  test: (downloader: Downloader) => Promise<void>
   close: () => void
 }>()
 

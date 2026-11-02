@@ -12,11 +12,13 @@ import asyncio
 from backend.config import ConfigManager
 
 from backend.dependencies import get_session
+from backend.services.downloader.parser import create_downloader
 from backend.services.filehelper import apply_import_result, import_book_files, prepare_destination, process_direct_upload
 from backend.services.indexer import BaseIndexer
 from backend.services.downloader import BaseDownloader
 from backend.datamodels import Book, Author, Series, Activity, ActivityStatus
-from backend.payloads import ManualGUIDDownload
+from backend.payloads import DownloaderRequest, IndexerRequest, ManualGUIDDownload
+from backend.services.indexer.parser import create_indexer
 router = APIRouter(prefix="/dapi", tags=["NZB"])
 
 
@@ -172,6 +174,19 @@ async def download_series(request: Request, series_id: str, audio: bool = True, 
     if not_found or errors:
         return {"partial_success": series_id, "not_found": not_found, "errors": errors}
     return series_id
+
+@router.post("/test/downloader")
+async def test_downloader(request: Request, data: DownloaderRequest):
+    cfg = request.app.state.cfg_manager
+    downloader = create_downloader(data.model_dump(), 0, data.audio)
+    return downloader.test(cfg)
+
+@router.post("/test/indexer")
+async def test_indexer(request: Request, data: IndexerRequest):
+    cfg = request.app.state.cfg_manager
+    indexer = create_indexer(data.model_dump(), 0, data.audio)
+    return await indexer.test(cfg)
+
 
 @router.delete("/book/{book_id}")
 async def delete_book_from_history(request: Request, book_id: str, audio: bool = True):

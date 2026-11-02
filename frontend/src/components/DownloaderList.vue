@@ -29,7 +29,7 @@ import type { Downloader } from "@/main.ts";
 const props = defineProps<{
   downloaders: Downloader[];
   editDownloader: (idx: number) => void;
-  reorderList: (key: string, downloaders: Downloader[]) => void;
+  applyDeepChange: (key: string, downloaders: Downloader[]) => void;
 }>();
 
 const draggedIndex = ref<number | null>(null);
@@ -44,7 +44,7 @@ function onDrop(targetIndex: number) {
   const [item] = reordered.splice(fromIndex, 1);
   reordered.splice(targetIndex, 0, item);
   console.log(reordered)
-  props.reorderList("downloaders", reordered)
+  props.applyDeepChange("downloaders", reordered)
 }
 </script>
 

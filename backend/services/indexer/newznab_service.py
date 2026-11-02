@@ -9,6 +9,10 @@ from time import time
 import asyncio
 
 class NewznabService(BaseIndexer):
+    def __init__(self, idx_cfg, indexeri_idx):
+        super().__init__(idx_cfg, indexeri_idx)
+        self.protocol = "usenet"
+
     async def search(self, q, cfg, audio):
         if (timeout:=time() - self.last_hit) < cfg.indexer_timeout:
             get_logger().log(5, f"Sleeping {cfg.indexer_timeout - timeout} seconds")
@@ -82,7 +86,7 @@ class NewznabService(BaseIndexer):
                 break
             else:
                 get_logger().info(f"Could not find a match for {book.name}, try raising your name ratio in the settings.")
-                return None, None, None
+                return None, None, None, None
             name = item.find("title").text
             guid = None
             download = item.find("link").text
@@ -94,4 +98,12 @@ class NewznabService(BaseIndexer):
             raise IndexerError(status_code=500, detail=f"Ran into a key error. Are we pointing to prowlarr or newznab?", exception=e)
         get_logger().log(5, f"Found release {name} for {book.name}")
         return name, guid, download, self.protocol
+
+    async def test(self, cfg):
+
+        response = await get_http(self.url, params={"t": "caps", "apikey": self.apikey})
+        if response.status_code == 200:
+            raise IndexerError("Could not connect to Indexer.")
+
+
 
