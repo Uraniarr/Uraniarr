@@ -50,11 +50,10 @@
         - ALLOWED_URLS=* # default: * (Should be set if exposed to internet)
         # - ALLOWED_METHODS=* # DEVELOPMENT ONLY
         # - ALLOWED_HEADERS=* # DEVELOPMENT ONLY
-      # volumes: #make sure the folder exists on host
-      #   - <on-host-config>:/config #e.g. /etc/uraniarr
-      #   - <on-host-data>:<internal-data-path> #e.g. /data
-      #   - <on-host-libary>:<internal-lib-path> #e.g. /library (if libary is on the same disk as <internal-data-path> this is not needed)
-      #
+      volumes: #make sure the folder exists on host
+        - <on-host-config>:/config #e.g. /etc/uraniarr
+        - <on-host-data>:<internal-data-path> #e.g. /data
+      # - <on-host-libary>:<internal-lib-path> #e.g. /library (if libary is on the same disk as <internal-data-path> this is not needed)
       # ╭────────────────────────────────────────────────────────────────────────────────────────╮
       # │   The <internal-data-path> should match the path of your downloaders mount path        │
       # │ this means if sab reports the download to be in /data but on your host this is mounted │
@@ -65,6 +64,17 @@
       # │              https://trash-guides.info/File-and-Folder-Structure/                      │
       # │                             it should just work with '/data'!!                         │
       # ╰────────────────────────────────────────────────────────────────────────────────────────╯
+      # ╭────────────────────────────────────────────────────────────────────────────────────╮
+      # │                          ??? A *-library downloader ???                            │
+      # │ https://github.com/heartleo has a download utility which can be mounted into this  │
+      # │   container to download from a popular internet library. I cannot and will not     │
+      # │  provide support for it. You can make it work using the bind mounts below.         │
+      # │       Just follow heartleo's instuctions on how to login on your host first.       │
+      # ╰────────────────────────────────────────────────────────────────────────────────────╯
+        - /opt/uraniarr:/opt/uraniarr
+      # - /usr/local/bin/*lib:/usr/local/bin/*lib:ro
+      # - /home/<user>/.config/*lib:/root/.config/*lib:ro
+
 ```
 **ALTERNATIVE: Run the application bare-bones (please don't)**
 
