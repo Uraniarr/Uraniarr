@@ -2,6 +2,7 @@ import asyncio
 from collections import defaultdict
 from typing import Any
 from fastapi import HTTPException, Depends, APIRouter, Request
+from pydantic import TypeAdapter
 from backend.dependencies import get_logger, get_session, get_cfg_manager
 from sqlmodel import select
 from sqlalchemy.orm import selectinload
@@ -250,15 +251,22 @@ async def update_settings(settings: dict[str, Any], request: Request):
     state = request.app.state
     cfg = state.cfg_manager
     for key in settings:
-        setattr(cfg, key, settings[key])
         if key == "playwright":
+            setattr(cfg, key, settings[key])
             await reload_scraper(state)
         elif key == "downloaders":
+            TypeAdapter(list[DownloaderRequest]).validate_python(settings[key])
+            setattr(cfg, key, settings[key])
             state.downloaders = downloader_factory(cfg)
         elif key == "indexers":
+            TypeAdapter(list[IndexerRequest]).validate_python(settings[key])
+            setattr(cfg, key, settings[key])
             state.indexers = indexer_factory(cfg)
         elif key.endswith("_interval"):
+            setattr(cfg, key, settings[key])
             await restart_job(state, get_job_by_interval(key))
+        else:
+            setattr(cfg, key, settings[key])
     return state.cfg_manager.get()
 
 @router.patch("/author/{author_id}")

@@ -15,7 +15,6 @@ class BaseIndexer(ABC):
         self.audio_categories = idx_cfg["audio_categories"]
         self.book_categories = idx_cfg["book_categories"]
         self.i_idx = indexeri_idx
-        self.protocol = idx_cfg.get("protocol")
 
     @abstractmethod
     async def search(self, q: str, cfg: ConfigManager, audio: bool):
@@ -31,6 +30,10 @@ class BaseIndexer(ABC):
 
     @abstractmethod
     async def grab(self, download: str, cfg: ConfigManager):
+        pass
+
+    @abstractmethod
+    async def test(self, cfg: ConfigManager) -> bool:
         pass
 
     def build_queries(self, book: Book): #TODO revisit

@@ -28,7 +28,7 @@ import { ref } from "vue";
 const props = defineProps<{
   indexers: Indexer[]
   editIndexer: (idx: number) => void
-  reorderList: (key: string, downloaders: Indexer[]) => void;
+  applyDeepChange: (key: string, downloaders: Indexer[]) => void;
 }>()
 
 const draggedIndex = ref<number | null>(null);
@@ -43,7 +43,7 @@ function onDrop(targetIndex: number) {
   const [item] = reordered.splice(fromIndex, 1);
   reordered.splice(targetIndex, 0, item);
   console.log(reordered)
-  props.reorderList("indexers", reordered)
+  props.applyDeepChange("indexers", reordered)
 }
 </script>
 

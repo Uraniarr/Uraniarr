@@ -21,7 +21,10 @@ class LibDownloader(BaseDownloader):
 
     async def test(self, cfg):
         proc = await asyncio.create_subprocess_exec("command", "-v", self.url)
-        return proc.returncode == 0
+        if not proc.returncode == 0:
+            raise DownloaderError(detail="Could not connect to downloader")
+        return True
+
 
     async def download(self, nzb, cfg, nzbname):
         tmp = mkdtemp(dir=cfg.lib_downloader_path)

@@ -83,3 +83,11 @@ class ProwlarrService(BaseIndexer):
             raise IndexerError(status_code=500, detail="Ran into a key error. Are we pointing to prowlarr or newznab?", exception=e)
         return name, guid, download, item["protocol"]
 
+    async def test(self, cfg):
+        response = await get_http(self.url+"/v1/system/status", params={"apikey": self.apikey})
+        if not response.status_code == 200:
+            raise IndexerError(404, detail="Could not connect to Indexer")
+        return True
+
+
+

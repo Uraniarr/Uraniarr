@@ -100,7 +100,6 @@ export interface Indexer {
   audio: boolean;
   audio_categories: string;
   book_categories: string;
-  protocol: "usenet" | "direct" | null;
   usenet?: boolean;
   torrent?: boolean;
 }

@@ -1,3 +1,5 @@
+from typing import Literal, Optional
+
 from pydantic import BaseModel
 
 class SeriesAuthor(BaseModel):
@@ -29,3 +31,25 @@ class ReturnInteractiveSearch(BaseModel):
 class KindleRequest(BaseModel):
     book_id: str
     kindle_idx: int = -1
+
+class IndexerRequest(BaseModel):
+    name: str
+    url: str
+    apikey: Optional[str]
+    type: str
+    book: bool
+    audio: bool
+    audio_categories: str
+    book_categories: str
+    usenet: bool
+    torrent: bool
+
+
+class DownloaderRequest(BaseModel):
+    name: str
+    url: str
+    apikey: str
+    type: str
+    audio: bool
+    book: bool
+    download_categories: str
