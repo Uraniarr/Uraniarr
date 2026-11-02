@@ -179,7 +179,7 @@ async def download_series(request: Request, series_id: str, audio: bool = True, 
 async def test_downloader(request: Request, data: DownloaderRequest):
     cfg = request.app.state.cfg_manager
     downloader = create_downloader(data.model_dump(), 0, data.audio)
-    return downloader.test(cfg)
+    return await downloader.test(cfg)
 
 @router.post("/test/indexer")
 async def test_indexer(request: Request, data: IndexerRequest):
