@@ -1,7 +1,10 @@
 <template>
   <div class="indexer-list">
     <div class="cards">
-      <div v-for="(indexer, idx) in indexers" :key="indexer.name" class="card indexer-card">
+      <div v-for="(indexer, idx) in indexers" :key="indexer.name" class="card indexer-card" draggable="true"
+        :class="{ dragging: draggedIndex === idx }" @dragstart="draggedIndex = idx" @dragover.prevent @drop.prevent="onDrop(idx)"
+        @dragend="draggedIndex = null"
+      >
         <div>
           <div class="title">{{ indexer.name }}</div>
           <div class="subtitle">{{ indexer.type }}</div>
@@ -20,11 +23,28 @@
 
 <script setup lang="ts">
 import type { Indexer } from "@/main.ts";
+import { ref } from "vue";
 
 const props = defineProps<{
   indexers: Indexer[]
   editIndexer: (idx: number) => void
+  reorderList: (key: string, downloaders: Indexer[]) => void;
 }>()
+
+const draggedIndex = ref<number | null>(null);
+
+function onDrop(targetIndex: number) {
+  const fromIndex = draggedIndex.value;
+  draggedIndex.value = null;
+
+  if (fromIndex === null || fromIndex === targetIndex) return;
+
+  const reordered = [...props.indexers];
+  const [item] = reordered.splice(fromIndex, 1);
+  reordered.splice(targetIndex, 0, item);
+  console.log(reordered)
+  props.reorderList("indexers", reordered)
+}
 </script>
 
 <style scoped>
@@ -51,6 +71,9 @@ const props = defineProps<{
   gap: 10px;
 }
 
+
+
+
 .indexer-card .title {
   font-size: 1.1rem;
   font-weight: 600;
@@ -63,7 +86,15 @@ const props = defineProps<{
   margin-top: 0.25rem;
 }
 
-
+.indexer-card{
+  cursor: grab;
+}
+.indexer-card:active {
+  cursor: grabbing;
+}
+.indexer-card.dragging {
+  opacity: 0.4;
+}
 
 /* Add card */
 .add-card {

@@ -31,9 +31,9 @@
           </option>
         </select>
         <IndexerList v-else-if="key === 'indexers'" :indexers="(settings.indexers?.value as Indexer[]) || []"
-        :edit-indexer="editIndexer"/>
+        :edit-indexer="editIndexer" :reorderList="reorderList"/>
         <DownloaderList v-else-if="key === 'downloaders'" :downloaders="(settings.downloaders?.value as Downloader[]) || []"
-        :edit-downloader="editDownloader"/>
+        :edit-downloader="editDownloader" :reorderList="reorderList"/>
         <button v-else-if="key === 'sendtokindle'" type="button" class="btn material-symbols-outlined" style="margin-left: 0;" @click="showModalKindle = true">build</button>
         <input
           v-else
@@ -245,6 +245,20 @@ async function saveSettings() {
       type: 'error'
     })
     await getSettings()
+  }
+}
+
+async function reorderList(key: string, lst: Downloader[]|Indexer[]) {
+  try{
+    await api.patch("/settings", { [key]: lst });
+    settings.value[key].value = lst;
+  } catch (error: any) {
+    console.log(error)
+    notify({
+      title: 'Error',
+      text: error.response.data.detail,
+      type: 'error'
+    })
   }
 }
 </script>
