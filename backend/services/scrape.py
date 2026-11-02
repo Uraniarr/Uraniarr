@@ -97,7 +97,7 @@ async def scrape_author_data(author_id: str, cfg: ConfigManager, name:str=None, 
     data = json.load(BytesIO(_data))
     coros = []
     for i in range(2, data["paginierung"]["anzahlSeiten"]+1):
-        coros.append(fetch_or_cached(cfg, base+suche+"/mehr-von-autor", {**params, "seite": i}))
+        coros.append(fetch_or_cached(cfg, base+suche+"/mehr-von-autorid/"+author_data["key"], {**params, "seite": i}))
     datas = [_data] + await asyncio.gather(*coros)
     for data in datas:
         data = json.load(BytesIO(data))
