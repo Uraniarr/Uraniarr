@@ -1,7 +1,11 @@
+
 <template>
   <div class="downloader-list">
     <div class="cards">
-      <div v-for="(downloader, idx) in downloaders" :key="downloader.name" class="card downloader-card">
+      <div v-for="(downloader, idx) in downloaders" :key="downloader.name" class="card downloader-card" draggable="true"
+        :class="{ dragging: draggedIndex === idx }" @dragstart="draggedIndex = idx" @dragover.prevent @drop.prevent="onDrop(idx)"
+        @dragend="draggedIndex = null"
+      >
         <div>
           <div class="title">{{ downloader.name }}</div>
           <div class="subtitle">{{ downloader.type }}</div>
@@ -11,7 +15,7 @@
         </button>
       </div>
 
-      <div type="button" class="card add-card" @click="props.editDownloader(downloaders.length)">
+      <div class="card add-card" @click="props.editDownloader(downloaders.length)">
         <span class="plus material-symbols-outlined">add</span>
       </div>
     </div>
@@ -19,12 +23,29 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import type { Downloader } from "@/main.ts";
 
 const props = defineProps<{
-  downloaders: Downloader[]
-  editDownloader: (idx: number) => void
-}>()
+  downloaders: Downloader[];
+  editDownloader: (idx: number) => void;
+  reorderList: (key: string, downloaders: Downloader[]) => void;
+}>();
+
+const draggedIndex = ref<number | null>(null);
+
+function onDrop(targetIndex: number) {
+  const fromIndex = draggedIndex.value;
+  draggedIndex.value = null;
+
+  if (fromIndex === null || fromIndex === targetIndex) return;
+
+  const reordered = [...props.downloaders];
+  const [item] = reordered.splice(fromIndex, 1);
+  reordered.splice(targetIndex, 0, item);
+  console.log(reordered)
+  props.reorderList("downloaders", reordered)
+}
 </script>
 
 <style scoped>
@@ -49,6 +70,16 @@ const props = defineProps<{
   padding: 10px;
   display: flex;
   gap: 10px;
+}
+
+.downloader-card{
+  cursor: grab;
+}
+.downloader-card:active {
+  cursor: grabbing;
+}
+.downloader-card.dragging {
+  opacity: 0.4;
 }
 
 .downloader-card .title {
